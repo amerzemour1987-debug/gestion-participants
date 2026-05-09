@@ -250,15 +250,15 @@ const AdminEvent = () => {
                 <p className="text-xs text-muted-foreground">Envoyez ce lien à vos hôtesses sur WhatsApp. Pas besoin de mot de passe.</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
-                  <div className="h-48 w-48 bg-white p-3 rounded-2xl border-4 border-primary/20 shadow-xl shrink-0">
+                <div className="flex flex-col xl:flex-row gap-8 items-center xl:items-start">
+                  <div className="h-64 w-64 bg-white p-4 rounded-3xl border-8 border-primary/10 shadow-2xl shrink-0">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(staffUrl)}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=500x500&data=${encodeURIComponent(staffUrl)}`} 
                       alt="QR Code Staff" 
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <div className="flex-1 w-full space-y-4">
+                  <div className="flex-1 w-full space-y-6">
                     <div className="flex gap-2">
                       <Input value={staffUrl} readOnly className="h-12 bg-white/50 border-primary/20 text-sm" />
                       <Button variant="default" size="icon" className="h-12 w-12" onClick={copyStaffLink}><Copy className="h-5 w-5" /></Button>

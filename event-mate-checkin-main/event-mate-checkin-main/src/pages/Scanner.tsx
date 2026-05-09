@@ -162,9 +162,11 @@ const Scanner = () => {
               </h1>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-all">
-            <LogOut className="h-5 w-5" />
-          </Button>
+          {!id && (
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-all">
+              <LogOut className="h-5 w-5" />
+            </Button>
+          )}
         </div>
       </header>
 
@@ -200,12 +202,14 @@ const Scanner = () => {
 
         {step === "room" && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant="ghost" size="sm" className="rounded-full h-8 w-8 p-0" onClick={() => { setStep("event"); setEvent(null); }}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-              <span className="text-sm font-medium text-slate-500">Retour aux événements</span>
-            </div>
+            {!id && (
+              <div className="flex items-center gap-2 mb-4">
+                <Button variant="ghost" size="sm" className="rounded-full h-8 w-8 p-0" onClick={() => { setStep("event"); setEvent(null); }}>
+                  <ArrowLeft className="h-4 w-4" />
+                </Button>
+                <span className="text-sm font-medium text-slate-500">Retour aux événements</span>
+              </div>
+            )}
             <div className="text-center space-y-2 mb-6">
               <h2 className="text-2xl font-bold text-slate-900">Affectation</h2>
               <p className="text-slate-500">À quelle salle êtes-vous affecté(e) ?</p>
