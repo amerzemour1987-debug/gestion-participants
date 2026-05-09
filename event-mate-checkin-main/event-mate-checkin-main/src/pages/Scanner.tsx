@@ -127,20 +127,22 @@ const Scanner = () => {
       <header className="bg-slate-900 text-white px-6 py-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
         <div className="container max-w-lg mx-auto flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-4">
-            <div className="h-12 w-12 rounded-xl bg-white/10 backdrop-blur-md border border-white/20 flex items-center justify-center overflow-hidden">
+          <div className="flex items-center gap-6">
+            <div className="h-20 w-20 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border-2 border-white/20">
               {event?.logo_url ? (
-                <img src={event.logo_url} alt="" className="h-full w-full object-contain p-1.5" />
+                <img src={event.logo_url} alt="" className="h-full w-full object-contain p-2" />
               ) : (
-                <Camera className="h-6 w-6 text-primary-foreground" />
+                <Camera className="h-10 w-10 text-slate-300" />
               )}
             </div>
             <div>
-              <h1 className="text-xl font-black tracking-tight leading-none mb-1">{event?.title ?? "Staff Check-in"}</h1>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-slate-400 uppercase tracking-wider">
-                <MapPin className="h-3 w-3 text-primary" />
-                {room ? room.name : "Sélectionner une salle"}
+              <div className="flex items-center gap-2 text-primary mb-1">
+                <MapPin className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-widest">Poste de contrôle</span>
               </div>
+              <h1 className="text-3xl font-black tracking-tight leading-none text-white">
+                {room ? room.name : "Sélectionner une salle"}
+              </h1>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-all">
@@ -215,9 +217,10 @@ const Scanner = () => {
               <Button variant="ghost" size="sm" className="gap-2 text-slate-500 hover:text-slate-900 transition-colors" onClick={() => { setStep("room"); setRoom(null); setResult(null); }}>
                 <ArrowLeft className="h-4 w-4" /> Changer de salle
               </Button>
-              <Badge variant="outline" className="bg-white/50 backdrop-blur-sm border-slate-200 py-1 px-3">
-                Mode Staff
-              </Badge>
+              <div className="flex items-center gap-2 text-slate-400">
+                <User className="h-4 w-4" />
+                <span className="text-xs font-bold uppercase tracking-wider">Staff Actif</span>
+              </div>
             </div>
 
             <Card className="overflow-hidden border-0 shadow-2xl bg-white">

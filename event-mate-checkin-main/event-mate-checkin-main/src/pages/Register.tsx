@@ -120,17 +120,21 @@ const Register = () => {
   if (!event) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Événement introuvable</div>;
 
   return (
-    <div className="min-h-screen">
-      <section className="relative px-4 py-20 md:py-32 overflow-hidden bg-slate-950">
+    <div className="min-h-screen bg-slate-50">
+      {/* Banner Section - Original Colors */}
+      {event.banner_url && (
+        <div className="w-full h-48 md:h-64 lg:h-80 overflow-hidden relative">
+          <img src={event.banner_url} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 shadow-[inset_0_-40px_60px_-10px_rgba(15,23,42,0.3)]" />
+        </div>
+      )}
+
+      <section className="relative px-4 py-16 md:py-24 overflow-hidden bg-slate-950">
         {/* Background Effects */}
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
           <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-accent/20 rounded-full blur-[120px] animate-pulse" />
         </div>
-        
-        {event.banner_url && (
-          <img src={event.banner_url} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-overlay" />
-        )}
         
         <div className="container max-w-4xl mx-auto text-center relative z-10">
           {event.subtitle && (
