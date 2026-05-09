@@ -14,7 +14,8 @@ import { supabase } from "@/integrations/supabase/client";
 interface EventRow {
   id: string; title: string; subtitle: string; description: string;
   event_date: string | null; time_range: string; location: string;
-  banner_url: string | null; logo_url: string | null; slug: string; is_active: boolean;
+  banner_url: string | null; banner_position: string; logo_url: string | null; 
+  slug: string; is_active: boolean;
 }
 interface RoomRow { id: string; name: string; capacity: number | null; display_order: number; }
 interface RegRow {
@@ -70,7 +71,7 @@ const AdminEvent = () => {
     const { error } = await supabase.from("events").update({
       title: ev.title, subtitle: ev.subtitle, description: ev.description,
       event_date: ev.event_date, time_range: ev.time_range, location: ev.location,
-      is_active: ev.is_active,
+      is_active: ev.is_active, banner_position: ev.banner_position || 'center',
     }).eq("id", ev.id);
     setSaving(false);
     toast({ title: error ? "Erreur" : "Enregistré", description: error?.message, variant: error ? "destructive" : "default" });
@@ -154,26 +155,17 @@ const AdminEvent = () => {
 
   const stats = (roomId: string) => {
     let registered = 0, present = 0;
+    if (!regs || regs.length === 0) return { registered: 0, present: 0 };
+    
     regs.forEach((r) => {
-      if (r.registration_rooms.some((x) => x.room_id === roomId)) registered++;
-      if (r.room_check_ins.some((x) => x.room_id === roomId)) present++;
+      // Vérification ultra-précise de l'inscription dans la salle
+      const isInscrit = r.registration_rooms?.some((x) => x.room_id === roomId);
+      const isPresent = r.room_check_ins?.some((x) => x.room_id === roomId);
+      
+      if (isInscrit) registered++;
+      if (isPresent) present++;
     });
     return { registered, present };
-  };
-
-  const exportCsv = () => {
-    const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r.name]));
-    const headers = ["Prénom","Nom","Email","Téléphone","Inscrit le","Salles inscrites","Présent dans"];
-    const lines = regs.map((r) => [
-      r.first_name, r.last_name, r.email, r.phone, r.created_at,
-      r.registration_rooms.map((x) => roomMap[x.room_id]).filter(Boolean).join(" | "),
-      r.room_check_ins.map((x) => roomMap[x.room_id]).filter(Boolean).join(" | "),
-    ].map((v) => `"${String(v).replace(/"/g,'""')}"`).join(","));
-    const csv = [headers.join(","), ...lines].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `${ev.title}-participants.csv`; a.click();
-    URL.revokeObjectURL(url);
   };
 
   return (
@@ -238,6 +230,20 @@ const AdminEvent = () => {
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "banner")} />
                 <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> Uploader une bannière</span></Button>
               </label>
+              {ev.banner_url && (
+                <div className="pt-2 space-y-1.5">
+                  <Label className="text-xs">Cadrage de l'image (Haut / Centre / Bas)</Label>
+                  <select 
+                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    value={ev.banner_position || "center"}
+                    onChange={(e) => setEv({ ...ev, banner_position: e.target.value })}
+                  >
+                    <option value="top">Haut</option>
+                    <option value="center">Centre</option>
+                    <option value="bottom">Bas</option>
+                  </select>
+                </div>
+              )}
             </CardContent>
           </Card>
           <Card>
