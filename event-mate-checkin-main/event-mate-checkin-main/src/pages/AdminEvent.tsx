@@ -6,6 +6,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Progress } from "@/components/ui/progress";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowLeft, Save, Plus, Trash2, Upload, Copy, ExternalLink, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EventRow {
@@ -130,19 +135,13 @@ const AdminEvent = () => {
     if (!confirm("ATTENTION : Cette action est irréversible. Un backup CSV sera téléchargé automatiquement et tous les fichiers associés seront supprimés. Confirmer la suppression ?")) return;
     
     setSaving(true);
-    // 1. Auto-Backup
     exportCsv();
-
-    // 2. Nettoyage Stockage (Storage)
     const { data: files } = await supabase.storage.from("event-assets").list(ev.id);
     if (files && files.length > 0) {
       const paths = files.map(f => `${ev.id}/${f.name}`);
       await supabase.storage.from("event-assets").remove(paths);
     }
-
-    // 3. Suppression DB (Cascades are handled by DB schema)
     const { error } = await supabase.from("events").delete().eq("id", ev.id);
-    
     if (error) {
       toast({ title: "Erreur lors de la suppression", description: error.message, variant: "destructive" });
       setSaving(false);
@@ -155,14 +154,11 @@ const AdminEvent = () => {
   const stats = (roomId: string) => {
     let registered = 0, present = 0;
     if (!regs || regs.length === 0) return { registered: 0, present: 0 };
-    
     regs.forEach((r) => {
       const rooms_list = r.registration_rooms ? (Array.isArray(r.registration_rooms) ? r.registration_rooms : [r.registration_rooms]) : [];
       const checks_list = r.room_check_ins ? (Array.isArray(r.room_check_ins) ? r.room_check_ins : [r.room_check_ins]) : [];
-
       const isInscrit = rooms_list.some((x: any) => x.room_id === roomId);
       const isPresent = checks_list.some((x: any) => x.room_id === roomId);
-      
       if (isInscrit) registered++;
       if (isPresent) present++;
     });
@@ -170,18 +166,18 @@ const AdminEvent = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
+    <div className="min-h-screen bg-background text-foreground">
+      <header className="border-b bg-card sticky top-0 z-10">
         <div className="container max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="sm" asChild><Link to="/admin"><ArrowLeft className="h-4 w-4" /></Link></Button>
             <div>
-              <h1 className="text-xl font-bold">{ev.title}</h1>
-              <p className="text-sm text-muted-foreground">Configuration de l'événement</p>
+              <h1 className="text-xl font-bold truncate max-w-[200px] sm:max-w-md">{ev.title}</h1>
+              <p className="text-xs text-muted-foreground">Tableau de bord de l'événement</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="destructive" size="sm" onClick={deleteEvent} disabled={saving} className="gap-2">
+            <Button variant="destructive" size="sm" onClick={deleteEvent} disabled={saving} className="hidden sm:flex gap-2">
               <Trash2 className="h-4 w-4" /> Supprimer
             </Button>
             <Button onClick={saveEvent} disabled={saving} className="gap-2">
@@ -202,7 +198,6 @@ const AdminEvent = () => {
           </TabsList>
 
           <TabsContent value="general" className="space-y-6 animate-in fade-in duration-300">
-            {/* Lien d'inscription */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Lien d'inscription public</CardTitle></CardHeader>
               <CardContent className="flex gap-2">
@@ -212,7 +207,6 @@ const AdminEvent = () => {
               </CardContent>
             </Card>
 
-            {/* Détails de l'événement */}
             <Card>
               <CardHeader className="pb-3"><CardTitle className="text-base">Contenu de la page</CardTitle></CardHeader>
               <CardContent className="space-y-4">
@@ -233,7 +227,6 @@ const AdminEvent = () => {
           </TabsContent>
 
           <TabsContent value="rooms" className="space-y-6 animate-in fade-in duration-300">
-            {/* État de remplissage visuel */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {rooms.map((r) => {
                 const s = stats(r.id);
