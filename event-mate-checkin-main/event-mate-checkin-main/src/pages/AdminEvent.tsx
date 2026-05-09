@@ -110,6 +110,48 @@ const AdminEvent = () => {
   const regUrl = `${window.location.origin}/inscription/${ev.slug}`;
   const copyLink = () => { navigator.clipboard.writeText(regUrl); toast({ title: "Lien copié" }); };
 
+  const exportCsv = () => {
+    const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r.name]));
+    const headers = ["Prénom","Nom","Email","Téléphone","Inscrit le","Salles inscrites","Présent dans"];
+    const lines = regs.map((r) => [
+      r.first_name, r.last_name, r.email, r.phone, r.created_at,
+      r.registration_rooms.map((x) => roomMap[x.room_id]).filter(Boolean).join(" | "),
+      r.room_check_ins.map((x) => roomMap[x.room_id]).filter(Boolean).join(" | "),
+    ].map((v) => `"${String(v).replace(/"/g,'""')}"`).join(","));
+    const csv = [headers.join(","), ...lines].join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = `${ev.title}-backup-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    return true;
+  };
+
+  const deleteEvent = async () => {
+    if (!confirm("ATTENTION : Cette action est irréversible. Un backup CSV sera téléchargé automatiquement et tous les fichiers associés seront supprimés. Confirmer la suppression ?")) return;
+    
+    setSaving(true);
+    // 1. Auto-Backup
+    exportCsv();
+
+    // 2. Nettoyage Stockage (Storage)
+    const { data: files } = await supabase.storage.from("event-assets").list(ev.id);
+    if (files && files.length > 0) {
+      const paths = files.map(f => `${ev.id}/${f.name}`);
+      await supabase.storage.from("event-assets").remove(paths);
+    }
+
+    // 3. Suppression DB (Cascades are handled by DB schema)
+    const { error } = await supabase.from("events").delete().eq("id", ev.id);
+    
+    if (error) {
+      toast({ title: "Erreur lors de la suppression", description: error.message, variant: "destructive" });
+      setSaving(false);
+    } else {
+      toast({ title: "Événement supprimé", description: "Backup téléchargé et stockage nettoyé." });
+      navigate("/admin");
+    }
+  };
+
   const stats = (roomId: string) => {
     let registered = 0, present = 0;
     regs.forEach((r) => {
@@ -145,9 +187,14 @@ const AdminEvent = () => {
               <p className="text-sm text-muted-foreground">Configuration de l'événement</p>
             </div>
           </div>
-          <Button onClick={saveEvent} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" /> {saving ? "…" : "Enregistrer"}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="destructive" size="sm" onClick={deleteEvent} disabled={saving} className="gap-2">
+              <Trash2 className="h-4 w-4" /> Supprimer
+            </Button>
+            <Button onClick={saveEvent} disabled={saving} className="gap-2">
+              <Save className="h-4 w-4" /> {saving ? "…" : "Enregistrer"}
+            </Button>
+          </div>
         </div>
       </header>
 
