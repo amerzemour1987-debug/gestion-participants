@@ -95,7 +95,8 @@ const Register = () => {
       toast({ title: "Inscription refusée", description: error.message, variant: "destructive" });
       return;
     }
-    const row = data as any;
+    // Gestion robuste du résultat (tableau ou objet direct)
+    const row = Array.isArray(data) ? data[0] : data;
     const selectedRoomNames = rooms.filter((r) => selectedRooms.has(r.id)).map((r) => r.name);
     
     // Send confirmation email (async, don't block navigation)

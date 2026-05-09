@@ -56,7 +56,7 @@ const Scanner = () => {
     const { data: reg } = await supabase
       .from("registrations")
       .select("id, first_name, last_name, qr_code, registration_rooms(room_id)")
-      .eq("qr_code", trimmed)
+      .ilike("qr_code", trimmed) // ilike est insensible à la casse
       .eq("event_id", event.id)
       .maybeSingle();
 

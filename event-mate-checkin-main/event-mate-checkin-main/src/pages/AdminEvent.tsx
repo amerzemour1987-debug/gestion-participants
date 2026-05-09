@@ -158,9 +158,11 @@ const AdminEvent = () => {
     if (!regs || regs.length === 0) return { registered: 0, present: 0 };
     
     regs.forEach((r) => {
-      // Vérification ultra-précise de l'inscription dans la salle
-      const isInscrit = r.registration_rooms?.some((x) => x.room_id === roomId);
-      const isPresent = r.room_check_ins?.some((x) => x.room_id === roomId);
+      const rooms_list = r.registration_rooms ? (Array.isArray(r.registration_rooms) ? r.registration_rooms : [r.registration_rooms]) : [];
+      const checks_list = r.room_check_ins ? (Array.isArray(r.room_check_ins) ? r.room_check_ins : [r.room_check_ins]) : [];
+
+      const isInscrit = rooms_list.some((x: any) => x.room_id === roomId);
+      const isPresent = checks_list.some((x: any) => x.room_id === roomId);
       
       if (isInscrit) registered++;
       if (isPresent) present++;
