@@ -33,11 +33,16 @@ export const sendConfirmationEmail = async ({
   let bodyText = customTemplate || `Bonjour {{prenom}},\n\nVotre inscription pour l'événement {{evenement}} a bien été enregistrée.\n\n{{salles}}\n\nVeuillez présenter votre QR code à l'entrée.`;
 
   // Replacement logic
-  const formattedBody = bodyText
-    .replace(/{{prenom}}/g, firstName)
-    .replace(/{{nom}}/g, lastName)
-    .replace(/{{evenement}}/g, eventTitle)
-    .replace(/{{salles}}/g, roomHtml)
+  // Utilisation du template personnalisé ou du template par défaut
+  let textToProcess = customTemplate && customTemplate.trim() !== "" 
+    ? customTemplate 
+    : `Bonjour {{prenom}} {{nom}},\n\nVotre inscription pour l'événement {{evenement}} a bien été enregistrée.\n\nSalles/Ateliers : {{salles}}\n\nVeuillez présenter votre QR code à l'entrée.`;
+
+  const formattedBody = textToProcess
+    .replace(/\{\{prenom\}\}/gi, firstName)
+    .replace(/\{\{nom\}\}/gi, lastName)
+    .replace(/\{\{evenement\}\}/gi, eventTitle)
+    .replace(/\{\{salles\}\}/gi, rooms.join(", "))
     .replace(/\n/g, "<br/>");
 
   const htmlContent = `
