@@ -13,7 +13,7 @@ import { sendConfirmationEmail } from "@/lib/brevo";
 interface EventRow {
   id: string; title: string; subtitle: string; description: string;
   event_date: string | null; time_range: string; location: string;
-  banner_url: string | null;
+  banner_url: string | null; banner_position: string | null;
 }
 interface RoomRow {
   id: string; name: string; capacity: number | null; display_order: number;
@@ -95,7 +95,7 @@ const Register = () => {
       toast({ title: "Inscription refusée", description: error.message, variant: "destructive" });
       return;
     }
-    const row = (data as any)?.[0];
+    const row = data as any;
     const selectedRoomNames = rooms.filter((r) => selectedRooms.has(r.id)).map((r) => r.name);
     
     // Send confirmation email (async, don't block navigation)
@@ -124,7 +124,12 @@ const Register = () => {
       {/* Banner Section - Original Colors */}
       {event.banner_url && (
         <div className="w-full h-48 md:h-64 lg:h-80 overflow-hidden relative">
-          <img src={event.banner_url} alt="" className="w-full h-full object-cover" />
+          <img 
+            src={event.banner_url} 
+            alt="" 
+            className="w-full h-full object-cover" 
+            style={{ objectPosition: event.banner_position || 'center' }}
+          />
           <div className="absolute inset-0 shadow-[inset_0_-40px_60px_-10px_rgba(15,23,42,0.3)]" />
         </div>
       )}
