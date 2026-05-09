@@ -354,6 +354,24 @@ const AdminEvent = () => {
           </TabsContent>
 
           <TabsContent value="data" className="space-y-6 animate-in fade-in duration-300">
+            {/* État de remplissage visuel (rappel ici aussi) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rooms.map((r) => {
+                const s = stats(r.id);
+                const percent = r.capacity ? Math.round((s.registered / r.capacity) * 100) : 0;
+                const color = percent > 90 ? "bg-red-500" : percent > 70 ? "bg-orange-500" : "bg-emerald-500";
+                return (
+                  <div key={`stat-data-${r.id}`} className="bg-card border rounded-lg p-3 flex flex-col justify-center space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-bold uppercase opacity-60 truncate">{r.name}</span>
+                      <span className="text-[10px] font-bold">{percent}%</span>
+                    </div>
+                    <Progress value={r.capacity ? percent : 100} className="h-1" indicatorClassName={r.capacity ? color : "bg-primary"} />
+                  </div>
+                );
+              })}
+            </div>
+
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
