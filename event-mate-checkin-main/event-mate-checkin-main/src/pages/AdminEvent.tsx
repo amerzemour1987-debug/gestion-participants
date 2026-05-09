@@ -250,23 +250,27 @@ const AdminEvent = () => {
                 <p className="text-xs text-muted-foreground">Envoyez ce lien à vos hôtesses sur WhatsApp. Pas besoin de mot de passe.</p>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
-                  <div className="h-24 w-24 bg-white p-2 rounded-lg border-2 border-primary/20 shadow-inner shrink-0">
+                <div className="flex flex-col md:flex-row gap-6 items-center md:items-start">
+                  <div className="h-48 w-48 bg-white p-3 rounded-2xl border-4 border-primary/20 shadow-xl shrink-0">
                     <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(staffUrl)}`} 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(staffUrl)}`} 
                       alt="QR Code Staff" 
                       className="w-full h-full object-contain"
                     />
                   </div>
-                  <div className="flex-1 w-full space-y-3">
+                  <div className="flex-1 w-full space-y-4">
                     <div className="flex gap-2">
-                      <Input value={staffUrl} readOnly className="bg-white/50 border-primary/20" />
-                      <Button variant="default" size="icon" onClick={copyStaffLink}><Copy className="h-4 w-4" /></Button>
-                      <Button variant="outline" size="icon" asChild><a href={staffUrl} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
+                      <Input value={staffUrl} readOnly className="h-12 bg-white/50 border-primary/20 text-sm" />
+                      <Button variant="default" size="icon" className="h-12 w-12" onClick={copyStaffLink}><Copy className="h-5 w-5" /></Button>
+                      <Button variant="outline" size="icon" className="h-12 w-12" asChild><a href={staffUrl} target="_blank"><ExternalLink className="h-5 w-5" /></a></Button>
                     </div>
-                    <p className="text-[10px] text-primary/60 font-medium italic">
-                      Astuce : Vos hôtesses peuvent scanner ce QR Code avec leur téléphone pour ouvrir le scanner instantanément.
-                    </p>
+                    <div className="bg-primary/10 p-4 rounded-xl border border-primary/20">
+                      <p className="text-sm text-primary font-bold mb-1">🚀 Accès Rapide Staff</p>
+                      <p className="text-xs text-primary/80 leading-relaxed">
+                        Faites scanner ce QR Code par vos hôtesses à leur arrivée. 
+                        Il ouvre directement le scanner pour cet événement sans demander de mot de passe.
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>
