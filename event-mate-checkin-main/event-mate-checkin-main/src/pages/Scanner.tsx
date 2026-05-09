@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Camera, CheckCircle, XCircle, Search, LogOut, CameraOff, ArrowLeft, User, MapPin } from "lucide-react";
+import { Camera, CheckCircle, XCircle, Search, LogOut, CameraOff, ArrowLeft, User, MapPin, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,13 +32,12 @@ const Scanner = () => {
 
   useEffect(() => {
     (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/login"); return; }
+      // MODE URGENCE : On ne vérifie plus le login ici
       const { data } = await supabase.from("events").select("id,title,logo_url").eq("is_active", true).order("created_at", { ascending: false });
       setEvents((data ?? []) as any);
     })();
     return () => { if (scannerRef.current?.isScanning) scannerRef.current.stop().catch(() => {}); };
-  }, [navigate]);
+  }, []);
 
   const pickEvent = async (e: EventOpt) => {
     setEvent(e);
@@ -76,12 +75,17 @@ const Scanner = () => {
       setResult({ status: "already", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
       return;
     }
-    // Record check-in
+    
+    // MODE URGENCE : On enregistre sans identifiant utilisateur si besoin
     const { data: { user } } = await supabase.auth.getUser();
     const { error: insErr } = await supabase.from("room_check_ins").insert({
-      registration_id: r.id, room_id: room.id, checked_in_by: user?.id,
+      registration_id: r.id, room_id: room.id, checked_in_by: user?.id || null,
     });
-    if (insErr) { toast({ title: "Erreur", description: insErr.message, variant: "destructive" }); return; }
+    
+    if (insErr) { 
+      toast({ title: "Erreur", description: "Impossible d'enregistrer le scan. Vérifiez la connexion.", variant: "destructive" }); 
+      return; 
+    }
     setResult({ status: "ok", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
   };
 
@@ -109,11 +113,16 @@ const Scanner = () => {
 
   const handleLogout = async () => {
     if (scannerRef.current?.isScanning) await scannerRef.current.stop().catch(() => {});
-    await supabase.auth.signOut(); navigate("/login");
+    navigate("/");
   };
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
+      {/* Emergency Mode Banner */}
+      <div className="bg-amber-500 text-white text-[10px] py-1 text-center font-bold flex items-center justify-center gap-2">
+        <AlertTriangle className="h-3 w-3" /> MODE URGENCE ACTIVÉ (SANS CONNEXION)
+      </div>
+
       {/* Premium Header */}
       <header className="bg-slate-900 text-white px-6 py-8 shadow-2xl relative overflow-hidden">
         <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
@@ -211,7 +220,6 @@ const Scanner = () => {
               </Badge>
             </div>
 
-            {/* Scanner Card */}
             <Card className="overflow-hidden border-0 shadow-2xl bg-white">
               <CardContent className="p-0">
                 <div className="relative aspect-square sm:aspect-video bg-slate-900 flex flex-col items-center justify-center overflow-hidden">
@@ -232,7 +240,6 @@ const Scanner = () => {
                     </div>
                   )}
 
-                  {/* Corner Accents */}
                   <div className="absolute top-4 left-4 w-8 h-8 border-t-2 border-l-2 border-primary/50" />
                   <div className="absolute top-4 right-4 w-8 h-8 border-t-2 border-r-2 border-primary/50" />
                   <div className="absolute bottom-4 left-4 w-8 h-8 border-b-2 border-l-2 border-primary/50" />
@@ -253,7 +260,6 @@ const Scanner = () => {
               </CardContent>
             </Card>
 
-            {/* Manual Entry */}
             <div className="space-y-3">
               <label className="text-xs font-bold text-slate-400 uppercase tracking-widest px-1">Saisie manuelle</label>
               <div className="flex gap-2">
@@ -273,7 +279,6 @@ const Scanner = () => {
               </div>
             </div>
 
-            {/* Scan Results Overlay/Card */}
             {result && (
               <Card className={`animate-in zoom-in-95 slide-in-from-top-4 duration-300 shadow-2xl border-2 ${
                 result.status === "ok" ? "border-emerald-500/50 bg-emerald-50/50" :
@@ -345,9 +350,8 @@ const Scanner = () => {
         )}
       </main>
 
-      {/* Subtle Footer */}
       <footer className="py-6 text-center">
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Broshing Events Check-in System v2.0</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Broshing Events Emergency Mode v2.1</p>
       </footer>
     </div>
   );
