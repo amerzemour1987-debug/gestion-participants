@@ -117,16 +117,45 @@ const AdminEvent = () => {
 
   const exportCsv = () => {
     const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r.name]));
-    const headers = ["Prénom","Nom","Email","Téléphone","Inscrit le","Salles inscrites","Présent dans"];
-    const lines = regs.map((r) => [
-      r.first_name, r.last_name, r.email, r.phone, r.created_at,
-      r.registration_rooms.map((x) => roomMap[x.room_id]).filter(Boolean).join(" | "),
-      r.room_check_ins.map((x) => roomMap[x.room_id]).filter(Boolean).join(" | "),
-    ].map((v) => `"${String(v).replace(/"/g,'""')}"`).join(","));
-    const csv = [headers.join(","), ...lines].join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    // BOM for Excel UTF-8 support
+    const BOM = "\uFEFF";
+    const headers = ["Prénom", "Nom", "Email", "Téléphone", "Inscrit le", "Ateliers choisis", "Heures de Scan"];
+    
+    const lines = regs.map((r) => {
+      const inscriptionDate = new Date(r.created_at).toLocaleString('fr-FR');
+      
+      const chosenRooms = r.registration_rooms
+        .map((x) => roomMap[x.room_id])
+        .filter(Boolean)
+        .join(" | ");
+
+      const scanDetails = r.room_check_ins
+        .map((x) => {
+          const roomName = roomMap[x.room_id];
+          const scanTime = new Date(x.checked_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          return `${roomName} (${scanTime})`;
+        })
+        .filter(Boolean)
+        .join(" | ");
+
+      return [
+        r.first_name, 
+        r.last_name, 
+        r.email, 
+        r.phone, 
+        inscriptionDate,
+        chosenRooms,
+        scanDetails
+      ].map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";");
+    });
+
+    const csvContent = BOM + [headers.join(";"), ...lines].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a"); a.href = url; a.download = `${ev.title}-backup-${new Date().toISOString().split('T')[0]}.csv`; a.click();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${ev.title}-Participants-${new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')}.csv`;
+    a.click();
     URL.revokeObjectURL(url);
     return true;
   };
