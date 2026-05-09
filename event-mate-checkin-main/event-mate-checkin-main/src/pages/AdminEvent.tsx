@@ -113,7 +113,9 @@ const AdminEvent = () => {
   };
 
   const regUrl = `${window.location.origin}/inscription/${ev.slug}`;
+  const staffUrl = `${window.location.origin}/scanner/${ev.id}`;
   const copyLink = () => { navigator.clipboard.writeText(regUrl); toast({ title: "Lien copié" }); };
+  const copyStaffLink = () => { navigator.clipboard.writeText(staffUrl); toast({ title: "Lien Staff copié" }); };
 
   const exportCsv = () => {
     const roomMap = Object.fromEntries(rooms.map((r) => [r.id, r.name]));
@@ -228,11 +230,45 @@ const AdminEvent = () => {
 
           <TabsContent value="general" className="space-y-6 animate-in fade-in duration-300">
             <Card>
-              <CardHeader className="pb-3"><CardTitle className="text-base">Lien d'inscription public</CardTitle></CardHeader>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base">Lien d'inscription public</CardTitle>
+                <p className="text-xs text-muted-foreground">À partager avec vos participants pour qu'ils s'inscrivent.</p>
+              </CardHeader>
               <CardContent className="flex gap-2">
                 <Input value={regUrl} readOnly className="bg-muted" />
                 <Button variant="outline" size="icon" onClick={copyLink}><Copy className="h-4 w-4" /></Button>
                 <Button variant="outline" size="icon" asChild><a href={regUrl} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                  <CardTitle className="text-base text-primary">Lien Scanner Staff (Accès direct)</CardTitle>
+                </div>
+                <p className="text-xs text-muted-foreground">Envoyez ce lien à vos hôtesses sur WhatsApp. Pas besoin de mot de passe.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+                  <div className="h-24 w-24 bg-white p-2 rounded-lg border-2 border-primary/20 shadow-inner shrink-0">
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(staffUrl)}`} 
+                      alt="QR Code Staff" 
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  <div className="flex-1 w-full space-y-3">
+                    <div className="flex gap-2">
+                      <Input value={staffUrl} readOnly className="bg-white/50 border-primary/20" />
+                      <Button variant="default" size="icon" onClick={copyStaffLink}><Copy className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" asChild><a href={staffUrl} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
+                    </div>
+                    <p className="text-[10px] text-primary/60 font-medium italic">
+                      Astuce : Vos hôtesses peuvent scanner ce QR Code avec leur téléphone pour ouvrir le scanner instantanément.
+                    </p>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
