@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, MapPin, Users, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Users, Clock, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { sendConfirmationEmail } from "@/lib/brevo";
@@ -13,12 +14,13 @@ import { sendConfirmationEmail } from "@/lib/brevo";
 interface EventRow {
   id: string; title: string; subtitle: string; description: string;
   event_date: string | null; time_range: string; location: string;
-  banner_url: string | null; banner_position: string | null;
+  banner_url: string | null; logo_url: string | null; 
+  program_url: string | null;
   email_template: string | null;
 }
 interface RoomRow {
   id: string; name: string; capacity: number | null; display_order: number;
-  registered: number;
+  registered: number; time_slot: string | null;
 }
 
 const Register = () => {
@@ -51,7 +53,6 @@ const Register = () => {
         enriched.push({ ...(r as any), registered: count ?? 0 });
       }
       setRooms(enriched);
-      // Auto-select if only 1 room
       if (enriched.length === 1) setSelectedRooms(new Set([enriched[0].id]));
       setLoadingPage(false);
     })();
@@ -60,11 +61,29 @@ const Register = () => {
   const isFull = (r: RoomRow) => r.capacity !== null && r.registered >= r.capacity;
 
   const toggleRoom = (id: string) => {
+    const room = rooms.find(r => r.id === id);
+    if (!room) return;
+
     setSelectedRooms((prev) => {
       const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
+      if (n.has(id)) {
+        n.delete(id);
+      } else {
+        // Anti-conflit : si cet atelier a un slot, on déselectionne les autres du même slot
+        if (room.time_slot) {
+          rooms.forEach(r => {
+            if (r.time_slot === room.time_slot && n.has(r.id)) n.delete(r.id);
+          });
+        }
+        n.add(id);
+      }
       return n;
     });
+  };
+
+  const isSlotConflict = (r: RoomRow) => {
+    if (!r.time_slot || selectedRooms.has(r.id)) return false;
+    return rooms.some(other => selectedRooms.has(other.id) && other.time_slot === r.time_slot);
   };
 
   const validate = () => {
@@ -124,76 +143,60 @@ const Register = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Banner Section - Original Colors */}
-      {event.banner_url && (
-        <div className="w-full h-48 md:h-64 lg:h-80 overflow-hidden relative">
+      {/* Clean Banner Section */}
+      <section className="relative h-[250px] md:h-[350px] overflow-hidden">
+        {event.banner_url ? (
           <img 
             src={event.banner_url} 
             alt="" 
             className="w-full h-full object-cover" 
-            style={{ objectPosition: event.banner_position || 'center' }}
           />
-          <div className="absolute inset-0 shadow-[inset_0_-40px_60px_-10px_rgba(15,23,42,0.3)]" />
-        </div>
-      )}
-
-      <section className="relative px-4 py-16 md:py-24 overflow-hidden bg-slate-950">
-        {/* Background Effects */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-accent/20 rounded-full blur-[120px] animate-pulse" />
-        </div>
-        
-        <div className="container max-w-4xl mx-auto text-center relative z-10">
-          {event.subtitle && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 text-sm text-white mb-8 transition-transform hover:scale-105 duration-300">
-              <Calendar className="h-4 w-4 text-accent" />
-              <span className="font-medium">{event.subtitle}</span>
-            </div>
-          )}
-          
-          <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight">
-            {event.title.split(' ').map((word, i) => (
-              <span key={i} className={i === 1 ? "text-gradient block md:inline" : ""}>
-                {word}{' '}
-              </span>
-            ))}
-          </h1>
-          
-          {event.description && (
-            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-10 whitespace-pre-line leading-relaxed">
-              {event.description}
-            </p>
-          )}
-          
-          <div className="flex flex-wrap items-center justify-center gap-8 text-sm font-medium text-slate-400">
-            {event.time_range && (
-              <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
-                <Clock className="h-4 w-4 text-primary" />
-                {event.time_range}
-              </span>
-            )}
-            {event.location && (
-              <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
-                <MapPin className="h-4 w-4 text-primary" />
-                {event.location}
-              </span>
-            )}
-            <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
-              <Users className="h-4 w-4 text-primary" />
-              Places limitées
-            </span>
-          </div>
-        </div>
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-950" />
+        )}
       </section>
 
-      <section className="px-4 -mt-12 pb-24 relative z-20">
-        <Card className="container max-w-lg mx-auto shadow-2xl border-white/10 bg-white/80 backdrop-blur-xl">
-          <CardContent className="p-8 md:p-12">
-            <div className="mb-8 text-center sm:text-left">
-              <h2 className="text-3xl font-bold text-slate-900 mb-2">Inscription</h2>
-              <p className="text-slate-500">Réservez votre place en quelques secondes.</p>
+      <section className="px-4 -mt-20 pb-24 relative z-20">
+        <Card className="container max-w-lg mx-auto shadow-2xl border-white/10 bg-white/95 backdrop-blur-xl overflow-hidden rounded-[2.5rem]">
+          <CardContent className="p-0">
+            {/* Header inside Card */}
+            <div className="bg-slate-50/50 p-8 md:p-10 border-b border-slate-100 text-center">
+              <h1 className="text-3xl md:text-4xl font-black text-slate-900 mb-4 tracking-tight">
+                {event.title}
+              </h1>
+              
+              {event.subtitle && (
+                <div className="inline-flex items-center gap-2 rounded-full bg-indigo-50 border border-indigo-100 px-3 py-1 text-xs text-indigo-600 mb-4">
+                  <Calendar className="h-3.5 w-3.5" />
+                  <span className="font-bold uppercase tracking-wider">{event.subtitle}</span>
+                </div>
+              )}
+
+              {event.description && (
+                <p className="text-sm text-slate-500 leading-relaxed max-w-md mx-auto mb-4">
+                  {event.description}
+                </p>
+              )}
+
+              <div className="flex flex-wrap items-center justify-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                {event.time_range && (
+                  <span className="flex items-center gap-1.5">
+                    <Clock className="h-3 w-3 text-indigo-400" />
+                    {event.time_range}
+                  </span>
+                )}
+                <span className="flex items-center gap-1.5">
+                  <Users className="h-3 w-3 text-indigo-400" />
+                  Places limitées
+                </span>
+              </div>
             </div>
+
+            <div className="p-8 md:p-10">
+              <div className="mb-8">
+                <h2 className="text-2xl font-bold text-slate-900 mb-1">Inscription</h2>
+                <p className="text-sm text-slate-400">Réservez votre place en quelques secondes.</p>
+              </div>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">
@@ -218,24 +221,44 @@ const Register = () => {
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
               </div>
 
-              {rooms.length > 1 && (
-                <div className="space-y-2 pt-2">
-                  <Label>Salles / ateliers</Label>
-                  <div className="space-y-2">
+              {rooms.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-black uppercase tracking-widest text-slate-400">Choix des ateliers</Label>
+                    {event.program_url && (
+                      <Button variant="outline" size="sm" asChild className="h-8 rounded-full border-primary text-primary hover:bg-primary hover:text-white transition-all text-[10px] font-bold uppercase tracking-widest">
+                        <a href={event.program_url} target="_blank" rel="noopener noreferrer">
+                          <Download className="h-3 w-3 mr-2" /> Programme
+                        </a>
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid gap-3">
                     {rooms.map((r) => {
                       const full = isFull(r);
+                      const conflict = isSlotConflict(r);
+                      const isSelected = selectedRooms.has(r.id);
                       return (
-                        <label key={r.id} className={`flex items-start gap-3 p-3 border rounded-lg ${full ? "opacity-50 cursor-not-allowed bg-muted" : "cursor-pointer hover:bg-accent"}`}>
+                        <label key={r.id} className={`flex items-start gap-4 p-4 border-2 rounded-2xl transition-all ${isSelected ? "border-primary bg-primary/5 shadow-md" : (full || conflict) ? "opacity-40 bg-slate-100 cursor-not-allowed" : "border-slate-100 hover:border-slate-200 cursor-pointer"}`}>
                           <Checkbox
-                            checked={selectedRooms.has(r.id)}
-                            disabled={full}
-                            onCheckedChange={() => !full && toggleRoom(r.id)}
+                            checked={isSelected}
+                            disabled={full || conflict}
+                            onCheckedChange={() => !(full || conflict) && toggleRoom(r.id)}
+                            className="mt-1"
                           />
                           <div className="flex-1">
-                            <p className="font-medium text-sm">{r.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {full ? "Plus de place pour cette salle" :
-                                r.capacity ? `${r.registered}/${r.capacity} inscrits` : "Inscriptions ouvertes"}
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="font-bold text-slate-900 leading-tight">{r.name}</p>
+                              {r.time_slot && (
+                                <Badge variant="outline" className="text-[9px] uppercase tracking-tighter bg-white h-5">
+                                  {r.time_slot}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-1">
+                              {full ? "Complet" : conflict ? "Autre atelier choisi sur ce créneau" : 
+                                r.capacity ? `${r.capacity - r.registered} places restantes` : "Inscriptions ouvertes"}
                             </p>
                           </div>
                         </label>
@@ -245,17 +268,15 @@ const Register = () => {
                   {errors.rooms && <p className="text-xs text-destructive">{errors.rooms}</p>}
                 </div>
               )}
-              {rooms.length === 1 && (
-                <p className="text-xs text-muted-foreground pt-1">Vous serez inscrit à : <strong>{rooms[0].name}</strong></p>
-              )}
 
               <Button type="submit" variant="hero" size="lg" className="w-full text-base" disabled={loading}>
                 {loading ? "Inscription en cours…" : "S'inscrire"}
               </Button>
             </form>
-          </CardContent>
-        </Card>
-      </section>
+          </div>
+        </CardContent>
+      </Card>
+    </section>
     </div>
   );
 };

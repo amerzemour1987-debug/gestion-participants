@@ -9,7 +9,10 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Html5Qrcode } from "html5-qrcode";
 
-interface EventOpt { id: string; title: string; logo_url: string | null; }
+interface EventOpt { 
+  id: string; title: string; logo_url: string | null; 
+  banner_url: string | null;
+}
 interface RoomOpt { id: string; name: string; }
 interface ScanResult {
   status: "ok" | "already" | "notreg" | "notfound";
@@ -33,26 +36,41 @@ const Scanner = () => {
 
   useEffect(() => {
     const init = async () => {
-      // Cas 1 : Lien direct vers un événement spécifique (Public)
-      if (id) {
-        const { data: ev } = await supabase.from("events").select("id,title,logo_url").eq("id", id).maybeSingle();
-        if (ev) {
-          setEvent(ev as any);
-          const { data: rms } = await supabase.from("rooms").select("id,name").eq("event_id", ev.id).order("display_order");
-          setRooms((rms as any) ?? []);
-          setStep("room");
+      if (!id) {
+        // Mode liste (nécessite connexion)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: evs } = await supabase.from("events").select("*").eq("is_active", true).order("created_at", { ascending: false });
+          setEvents((evs ?? []) as any);
+          setStep("event");
+        } else {
+          navigate("/scanner/login");
         }
         return;
       }
 
-      // Cas 2 : Accès à la liste générale (Protégé)
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate("/scanner/login");
-        return;
+      // Mode direct (Staff via lien)
+      console.log("Tentative de chargement direct ID:", id);
+      const { data: ev, error: evErr } = await supabase
+        .from("events")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (ev) {
+        setEvent(ev as any);
+        const { data: rms } = await supabase
+          .from("rooms")
+          .select("*")
+          .eq("event_id", ev.id)
+          .order("display_order");
+        
+        setRooms((rms as any) ?? []);
+        setStep("room");
+      } else {
+        console.error("Erreur chargement événement:", evErr);
+        // Si l'ID est invalide ou bloqué, l'UI affichera "Événement introuvable"
       }
-      const { data } = await supabase.from("events").select("id,title,logo_url").eq("is_active", true).order("created_at", { ascending: false });
-      setEvents((data ?? []) as any);
     };
 
     init();
@@ -76,7 +94,7 @@ const Scanner = () => {
     const { data: reg } = await supabase
       .from("registrations")
       .select("id, first_name, last_name, qr_code, registration_rooms(room_id)")
-      .ilike("qr_code", trimmed) // ilike est insensible à la casse
+      .ilike("qr_code", trimmed)
       .eq("event_id", event.id)
       .maybeSingle();
 
@@ -87,7 +105,6 @@ const Scanner = () => {
       setResult({ status: "notreg", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
       return;
     }
-    // Check if already checked in this room
     const { data: existing } = await supabase
       .from("room_check_ins").select("id")
       .eq("registration_id", r.id).eq("room_id", room.id).maybeSingle();
@@ -96,13 +113,9 @@ const Scanner = () => {
       return;
     }
     
-    // On enregistre sans identifiant utilisateur
-    const { error: insErr } = await supabase.from("room_check_ins").insert({
-      registration_id: r.id, room_id: room.id,
-    });
-    
+    const { error: insErr } = await supabase.from("room_check_ins").insert({ registration_id: r.id, room_id: room.id });
     if (insErr) { 
-      toast({ title: "Erreur", description: "Impossible d'enregistrer le scan. Vérifiez la connexion.", variant: "destructive" }); 
+      toast({ title: "Erreur", description: "Impossible d'enregistrer le scan.", variant: "destructive" }); 
       return; 
     }
     setResult({ status: "ok", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
@@ -136,99 +149,99 @@ const Scanner = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
-      {/* Header épuré */}
-
-
-      {/* Premium Header */}
-      <header className="bg-slate-900 text-white px-6 py-8 shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl -mr-16 -mt-16" />
-        <div className="container max-w-lg mx-auto flex items-center justify-between relative z-10">
-          <div className="flex items-center gap-6">
-            <div className="h-20 w-20 rounded-2xl bg-white shadow-xl flex items-center justify-center overflow-hidden border-2 border-white/20">
-              {event?.logo_url ? (
-                <img src={event.logo_url} alt="" className="h-full w-full object-contain p-2" />
-              ) : (
-                <Camera className="h-10 w-10 text-slate-300" />
-              )}
-            </div>
-            <div>
-              <div className="flex items-center gap-2 text-primary mb-1">
-                <MapPin className="h-4 w-4" />
-                <span className="text-xs font-bold uppercase tracking-widest">Poste de contrôle</span>
-              </div>
-              <h1 className="text-3xl font-black tracking-tight leading-none text-white">
-                {room ? room.name : "Sélectionner une salle"}
-              </h1>
-            </div>
-          </div>
-          {!id && (
-            <Button variant="ghost" size="icon" onClick={handleLogout} className="rounded-full hover:bg-white/10 text-white/70 hover:text-white transition-all">
-              <LogOut className="h-5 w-5" />
-            </Button>
-          )}
-        </div>
+    <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+      {/* Clean Banner Section for Scanner */}
+      <header className="relative h-[200px] md:h-[300px] overflow-hidden">
+        {event?.banner_url ? (
+          <img 
+            src={event.banner_url} 
+            alt="" 
+            className="w-full h-full object-cover" 
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-slate-900 to-slate-950" />
+        )}
       </header>
 
       <main className="flex-1 container max-w-lg mx-auto px-4 py-8 space-y-6">
         {step === "event" && (
           <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="text-center space-y-2 mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Bienvenue</h2>
-              <p className="text-slate-500">Sélectionnez l'événement pour commencer le scan.</p>
-            </div>
-            <div className="grid gap-3">
-              {events.map((e) => (
-                <Button 
-                  key={e.id} 
-                  variant="outline" 
-                  className="h-20 justify-start gap-4 px-6 bg-white hover:bg-slate-50 border-slate-200 hover:border-primary/50 shadow-sm transition-all group" 
-                  onClick={() => pickEvent(e)}
-                >
-                  <div className="h-10 w-10 rounded-lg bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
-                    {e.logo_url ? <img src={e.logo_url} className="h-6 w-6 object-contain" /> : <Camera className="h-5 w-5 text-slate-400 group-hover:text-primary" />}
-                  </div>
-                  <span className="font-semibold text-slate-700 group-hover:text-slate-900">{e.title}</span>
-                </Button>
-              ))}
-              {events.length === 0 && (
-                <div className="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                  <p className="text-slate-400">Aucun événement actif trouvé</p>
+            {id ? (
+              <div className="text-center py-12 bg-white rounded-[2.5rem] shadow-xl border border-rose-100 p-8">
+                <div className="mx-auto w-16 h-16 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-4">
+                  <AlertTriangle className="h-8 w-8" />
                 </div>
-              )}
-            </div>
+                <h2 className="text-xl font-bold text-slate-900 mb-2">Événement introuvable</h2>
+                <p className="text-slate-500 text-sm mb-6">Le lien utilisé semble invalide ou l'événement a été supprimé.</p>
+                <Button variant="outline" className="rounded-xl" onClick={() => navigate("/")}>
+                  Retour à l'accueil
+                </Button>
+              </div>
+            ) : (
+              <>
+                <div className="text-center space-y-2 mb-6">
+                  <h2 className="text-2xl font-bold text-slate-900">Bienvenue</h2>
+                  <p className="text-slate-500">Sélectionnez l'événement pour commencer le scan.</p>
+                </div>
+                <div className="grid gap-3">
+                  {events.map((e) => (
+                    <Button 
+                      key={e.id} 
+                      variant="outline" 
+                      className="h-20 justify-start gap-4 px-6 bg-white hover:bg-slate-50 border-slate-200 hover:border-primary/50 shadow-sm transition-all group" 
+                      onClick={() => pickEvent(e)}
+                    >
+                      <div className="h-10 w-10 rounded-lg bg-slate-100 group-hover:bg-primary/10 flex items-center justify-center transition-colors">
+                        {e.logo_url ? <img src={e.logo_url} className="h-6 w-6 object-contain" /> : <Camera className="h-5 w-5 text-slate-400 group-hover:text-primary" />}
+                      </div>
+                      <span className="font-semibold text-slate-700 group-hover:text-slate-900">{e.title}</span>
+                    </Button>
+                  ))}
+                  {events.length === 0 && (
+                    <div className="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-slate-200">
+                      <p className="text-slate-400">Aucun événement actif trouvé</p>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
-        {step === "room" && (
-          <div className="space-y-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-            {!id && (
-              <div className="flex items-center gap-2 mb-4">
-                <Button variant="ghost" size="sm" className="rounded-full h-8 w-8 p-0" onClick={() => { setStep("event"); setEvent(null); }}>
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <span className="text-sm font-medium text-slate-500">Retour aux événements</span>
-              </div>
-            )}
-            <div className="text-center space-y-2 mb-6">
-              <h2 className="text-2xl font-bold text-slate-900">Affectation</h2>
-              <p className="text-slate-500">À quelle salle êtes-vous affecté(e) ?</p>
-            </div>
-            <div className="grid gap-3">
-              {rooms.map((r) => (
-                <Button 
-                  key={r.id} 
-                  variant="outline" 
-                  className="h-16 justify-between gap-4 px-6 bg-white hover:bg-slate-50 border-slate-200 hover:border-primary/50 shadow-sm transition-all group" 
-                  onClick={() => pickRoom(r)}
-                >
-                  <span className="font-semibold text-slate-700 group-hover:text-slate-900">{r.name}</span>
-                  <div className="h-6 w-6 rounded-full bg-slate-100 group-hover:bg-primary/20 flex items-center justify-center">
-                    <Search className="h-3 w-3 text-slate-400 group-hover:text-primary" />
+        {step === "room" && event && (
+          <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <Card className="overflow-hidden border-none shadow-xl rounded-[2.5rem] bg-white/95 backdrop-blur-md">
+              <CardContent className="p-0">
+                <div className="bg-slate-50/80 p-8 border-b border-slate-100 flex flex-col items-center text-center">
+                  <div className="h-20 w-20 rounded-2xl bg-white shadow-lg flex items-center justify-center overflow-hidden border border-slate-100 mb-4">
+                    {event.logo_url ? (
+                      <img src={event.logo_url} alt="" className="h-full w-full object-contain p-3" />
+                    ) : (
+                      <Camera className="h-10 w-10 text-slate-200" />
+                    )}
                   </div>
-                </Button>
-              ))}
-            </div>
+                  <h1 className="text-2xl font-black text-slate-900 tracking-tight mb-1">{event.title}</h1>
+                  <p className="text-xs font-bold text-primary uppercase tracking-[0.2em] opacity-70">Sélectionner un poste</p>
+                </div>
+                
+                <div className="p-6 space-y-3">
+                  {rooms.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-slate-400 text-sm">Aucun poste configuré</p>
+                    </div>
+                  ) : rooms.map((r) => (
+                    <Button key={r.id} variant="outline" className="w-full h-16 justify-between text-lg font-bold rounded-2xl border-slate-100 hover:border-primary hover:bg-primary/5 hover:text-primary transition-all group" onClick={() => pickRoom(r)}>
+                      <span className="truncate">{r.name}</span>
+                      <Search className="h-5 w-5 text-slate-300 group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Button variant="ghost" className="w-full text-slate-400 font-bold" onClick={() => id ? navigate("/") : setStep("event")}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+            </Button>
           </div>
         )}
 
