@@ -54,10 +54,54 @@ const Admin = () => {
     navigate(`/admin/events/${data.id}`);
   };
 
-  const delEvent = async (id: string) => {
-    if (!confirm("Supprimer cet événement et toutes ses inscriptions ?")) return;
+  const delEvent = async (id: string, title: string) => {
+    if (!confirm(`ATTENTION : Voulez-vous vraiment supprimer "${title}" ?\nUn backup Excel sera téléchargé automatiquement.`)) return;
+
+    // 1. Charger les données pour le backup
+    const { data: rooms } = await supabase.from("rooms").select("*").eq("event_id", id);
+    const { data: regs } = await supabase
+      .from("registrations")
+      .select("*, registration_rooms(room_id), room_check_ins(room_id, checked_in_at)")
+      .eq("event_id", id);
+
+    if (regs && rooms) {
+      const roomMap = Object.fromEntries(rooms.map((r: any) => [r.id, r.name]));
+      const BOM = "\uFEFF";
+      const headers = ["Prénom", "Nom", "Email", "Téléphone", "Inscrit le", "Ateliers choisis", "Heures de Scan"];
+      
+      const lines = regs.map((r: any) => {
+        const inscriptionDate = new Date(r.created_at).toLocaleString('fr-FR');
+        const chosenRooms = r.registration_rooms.map((x: any) => roomMap[x.room_id]).filter(Boolean).join(" | ");
+        const scanDetails = r.room_check_ins.map((x: any) => {
+          const roomName = roomMap[x.room_id];
+          const scanTime = new Date(x.checked_in_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+          return `${roomName} (${scanTime})`;
+        }).filter(Boolean).join(" | ");
+
+        return [r.first_name, r.last_name, r.email, r.phone, inscriptionDate, chosenRooms, scanDetails]
+          .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(";");
+      });
+
+      const csvContent = BOM + [headers.join(";"), ...lines].join("\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${title}-Backup-Automatique.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // 2. Supprimer les fichiers et l'événement
+    const { data: files } = await supabase.storage.from("event-assets").list(id);
+    if (files && files.length > 0) {
+      const paths = files.map(f => `${id}/${f.name}`);
+      await supabase.storage.from("event-assets").remove(paths);
+    }
+
     await supabase.from("events").delete().eq("id", id);
     load();
+    toast({ title: "Événement supprimé", description: "Le backup a été téléchargé." });
   };
 
   const handleLogout = async () => { await supabase.auth.signOut(); navigate("/login"); };
@@ -104,7 +148,7 @@ const Admin = () => {
                 <Button variant="default" size="sm" asChild className="gap-2">
                   <Link to={`/admin/events/${e.id}`}><Settings className="h-4 w-4" /> Gérer</Link>
                 </Button>
-                <Button variant="ghost" size="icon" onClick={() => delEvent(e.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                <Button variant="ghost" size="icon" onClick={() => delEvent(e.id, e.title)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </CardContent>
             </Card>
           ))}
