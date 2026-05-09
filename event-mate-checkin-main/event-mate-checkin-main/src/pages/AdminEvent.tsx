@@ -15,6 +15,7 @@ interface EventRow {
   id: string; title: string; subtitle: string; description: string;
   event_date: string | null; time_range: string; location: string;
   banner_url: string | null; banner_position: string; logo_url: string | null; 
+  email_template: string | null;
   slug: string; is_active: boolean;
 }
 interface RoomRow { id: string; name: string; capacity: number | null; display_order: number; }
@@ -72,6 +73,7 @@ const AdminEvent = () => {
       title: ev.title, subtitle: ev.subtitle, description: ev.description,
       event_date: ev.event_date, time_range: ev.time_range, location: ev.location,
       is_active: ev.is_active, banner_position: ev.banner_position || 'center',
+      email_template: ev.email_template,
     }).eq("id", ev.id);
     setSaving(false);
     toast({ title: error ? "Erreur" : "Enregistré", description: error?.message, variant: error ? "destructive" : "default" });
@@ -259,6 +261,31 @@ const AdminEvent = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* Email Template */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Message de confirmation (Email)</CardTitle>
+            <p className="text-sm text-muted-foreground">Personnalisez le message envoyé par email après chaque inscription.</p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Textarea 
+              rows={6} 
+              placeholder="Bonjour {{prenom}}, ..." 
+              value={ev.email_template ?? ""} 
+              onChange={(e) => setEv({ ...ev, email_template: e.target.value })} 
+            />
+            <div className="bg-muted p-3 rounded-lg text-xs space-y-2">
+              <p className="font-bold uppercase tracking-wider opacity-70">Mots-clés magiques :</p>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{prenom}}"}</code><span>Prénom</span></div>
+                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{nom}}"}</code><span>Nom de famille</span></div>
+                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{evenement}}"}</code><span>Nom de l''event</span></div>
+                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{salles}}"}</code><span>Liste des ateliers</span></div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Salles */}
         <Card>

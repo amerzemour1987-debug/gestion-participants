@@ -14,6 +14,7 @@ interface EventRow {
   id: string; title: string; subtitle: string; description: string;
   event_date: string | null; time_range: string; location: string;
   banner_url: string | null; banner_position: string | null;
+  email_template: string | null;
 }
 interface RoomRow {
   id: string; name: string; capacity: number | null; display_order: number;
@@ -107,6 +108,7 @@ const Register = () => {
       eventTitle: event.title,
       qrCode: row?.qr_code,
       rooms: selectedRoomNames,
+      customTemplate: event.email_template,
     }).catch(err => console.error("Email sending failed:", err));
 
     navigate("/merci", {
