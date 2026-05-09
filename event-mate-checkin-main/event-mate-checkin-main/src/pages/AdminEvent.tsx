@@ -4,11 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Save, Plus, Trash2, Upload, Copy, ExternalLink, Download } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Progress } from "@/components/ui/progress";
 import { supabase } from "@/integrations/supabase/client";
 
 interface EventRow {
@@ -194,177 +191,220 @@ const AdminEvent = () => {
         </div>
       </header>
 
-      <main className="container max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* Lien d'inscription */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Lien d'inscription public</CardTitle></CardHeader>
-          <CardContent className="flex gap-2">
-            <Input value={regUrl} readOnly />
-            <Button variant="outline" size="icon" onClick={copyLink}><Copy className="h-4 w-4" /></Button>
-            <Button variant="outline" size="icon" asChild><a href={regUrl} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
-          </CardContent>
-        </Card>
+      <main className="container max-w-6xl mx-auto px-4 py-6">
+        <Tabs defaultValue="general" className="space-y-6">
+          <TabsList className="grid grid-cols-2 md:grid-cols-5 w-full h-auto gap-1 bg-muted p-1">
+            <TabsTrigger value="general" className="py-2.5">Général</TabsTrigger>
+            <TabsTrigger value="rooms" className="py-2.5">Salles</TabsTrigger>
+            <TabsTrigger value="design" className="py-2.5">Design</TabsTrigger>
+            <TabsTrigger value="email" className="py-2.5">Email</TabsTrigger>
+            <TabsTrigger value="data" className="py-2.5">Participants</TabsTrigger>
+          </TabsList>
 
-        {/* Détails de l'événement */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Contenu de la page d'inscription</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div><Label>Titre principal</Label><Input value={ev.title} onChange={(e) => setEv({ ...ev, title: e.target.value })} /></div>
-              <div><Label>Sous-titre / Date affichée</Label><Input value={ev.subtitle} onChange={(e) => setEv({ ...ev, subtitle: e.target.value })} /></div>
-            </div>
-            <div><Label>Description (texte de la zone bleue)</Label>
-              <Textarea rows={4} value={ev.description} onChange={(e) => setEv({ ...ev, description: e.target.value })} />
-            </div>
-            <div className="grid sm:grid-cols-3 gap-4">
-              <div><Label>Date</Label><Input type="date" value={ev.event_date ?? ""} onChange={(e) => setEv({ ...ev, event_date: e.target.value })} /></div>
-              <div><Label>Horaires</Label><Input value={ev.time_range} onChange={(e) => setEv({ ...ev, time_range: e.target.value })} /></div>
-              <div><Label>Lieu</Label><Input value={ev.location} onChange={(e) => setEv({ ...ev, location: e.target.value })} /></div>
-            </div>
-          </CardContent>
-        </Card>
+          <TabsContent value="general" className="space-y-6 animate-in fade-in duration-300">
+            {/* Lien d'inscription */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Lien d'inscription public</CardTitle></CardHeader>
+              <CardContent className="flex gap-2">
+                <Input value={regUrl} readOnly className="bg-muted" />
+                <Button variant="outline" size="icon" onClick={copyLink}><Copy className="h-4 w-4" /></Button>
+                <Button variant="outline" size="icon" asChild><a href={regUrl} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
+              </CardContent>
+            </Card>
 
-        {/* Bannière + Logo */}
-        <div className="grid md:grid-cols-2 gap-4">
-          <Card>
-            <CardHeader><CardTitle className="text-base">Bannière (page d'inscription)</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {ev.banner_url && <img src={ev.banner_url} alt="Bannière" className="w-full h-32 object-cover rounded-lg border" />}
-              <label className="block">
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "banner")} />
-                <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> Uploader une bannière</span></Button>
-              </label>
-              {ev.banner_url && (
-                <div className="pt-2 space-y-1.5">
-                  <Label className="text-xs">Cadrage de l'image (Haut / Centre / Bas)</Label>
-                  <select 
-                    className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    value={ev.banner_position || "center"}
-                    onChange={(e) => setEv({ ...ev, banner_position: e.target.value })}
-                  >
-                    <option value="top">Haut</option>
-                    <option value="center">Centre</option>
-                    <option value="bottom">Bas</option>
-                  </select>
+            {/* Détails de l'événement */}
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Contenu de la page</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div><Label>Titre principal</Label><Input value={ev.title} onChange={(e) => setEv({ ...ev, title: e.target.value })} /></div>
+                  <div><Label>Sous-titre / Date affichée</Label><Input value={ev.subtitle} onChange={(e) => setEv({ ...ev, subtitle: e.target.value })} /></div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader><CardTitle className="text-base">Logo (page Scanner staff)</CardTitle></CardHeader>
-            <CardContent className="space-y-3">
-              {ev.logo_url && <img src={ev.logo_url} alt="Logo" className="h-32 object-contain rounded-lg border bg-muted mx-auto" />}
-              <label className="block">
-                <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "logo")} />
-                <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> Uploader un logo</span></Button>
-              </label>
-            </CardContent>
-          </Card>
-        </div>
+                <div><Label>Description (zone bleue)</Label>
+                  <Textarea rows={4} value={ev.description} onChange={(e) => setEv({ ...ev, description: e.target.value })} />
+                </div>
+                <div className="grid sm:grid-cols-3 gap-4">
+                  <div><Label>Date</Label><Input type="date" value={ev.event_date ?? ""} onChange={(e) => setEv({ ...ev, event_date: e.target.value })} /></div>
+                  <div><Label>Horaires</Label><Input value={ev.time_range} onChange={(e) => setEv({ ...ev, time_range: e.target.value })} /></div>
+                  <div><Label>Lieu</Label><Input value={ev.location} onChange={(e) => setEv({ ...ev, location: e.target.value })} /></div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
-        {/* Email Template */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Message de confirmation (Email)</CardTitle>
-            <p className="text-sm text-muted-foreground">Personnalisez le message envoyé par email après chaque inscription.</p>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Textarea 
-              rows={6} 
-              placeholder="Bonjour {{prenom}}, ..." 
-              value={ev.email_template ?? ""} 
-              onChange={(e) => setEv({ ...ev, email_template: e.target.value })} 
-            />
-            <div className="bg-muted p-3 rounded-lg text-xs space-y-2">
-              <p className="font-bold uppercase tracking-wider opacity-70">Mots-clés magiques :</p>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{prenom}}"}</code><span>Prénom</span></div>
-                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{nom}}"}</code><span>Nom de famille</span></div>
-                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{evenement}}"}</code><span>Nom de l''event</span></div>
-                <div className="flex flex-col gap-1"><code className="text-primary font-bold">{"{{salles}}"}</code><span>Liste des ateliers</span></div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Salles */}
-        <Card>
-          <CardHeader><CardTitle className="text-base">Salles / Ateliers</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">
-              Capacité vide = inscriptions illimitées. Si une salle est pleine, l'inscription affiche "Plus de place pour cette salle".
-            </p>
-            <div className="space-y-2">
+          <TabsContent value="rooms" className="space-y-6 animate-in fade-in duration-300">
+            {/* État de remplissage visuel */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {rooms.map((r) => {
                 const s = stats(r.id);
+                const percent = r.capacity ? Math.round((s.registered / r.capacity) * 100) : 0;
+                const color = percent > 90 ? "bg-red-500" : percent > 70 ? "bg-orange-500" : "bg-emerald-500";
+                
                 return (
-                  <div key={r.id} className="flex flex-wrap items-center gap-2 p-3 border rounded-lg">
-                    <Input className="flex-1 min-w-[160px]" defaultValue={r.name} onBlur={(e) => e.target.value !== r.name && updateRoom(r, { name: e.target.value })} />
-                    <Input type="number" placeholder="Capacité (vide = illimité)" className="w-44"
-                      defaultValue={r.capacity ?? ""}
-                      onBlur={(e) => {
-                        const v = e.target.value.trim() ? parseInt(e.target.value) : null;
-                        if (v !== r.capacity) updateRoom(r, { capacity: v });
-                      }} />
-                    <Badge variant="secondary">Inscrits {s.registered}{r.capacity ? `/${r.capacity}` : ""}</Badge>
-                    <Badge variant="default">Présents {s.present}</Badge>
-                    <Button variant="ghost" size="icon" onClick={() => delRoom(r.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                  </div>
+                  <Card key={`stat-${r.id}`} className="overflow-hidden">
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex justify-between items-start">
+                        <p className="font-bold text-sm truncate pr-2">{r.name}</p>
+                        <Badge variant={percent >= 100 ? "destructive" : "secondary"} className="text-[10px]">
+                          {percent}%
+                        </Badge>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="flex justify-between text-[10px] text-muted-foreground">
+                          <span>{s.registered} inscrits</span>
+                          <span>{r.capacity ? `${r.capacity} places` : "Illimité"}</span>
+                        </div>
+                        <Progress value={r.capacity ? percent : 100} className="h-1.5" indicatorClassName={r.capacity ? color : "bg-primary"} />
+                      </div>
+                    </CardContent>
+                  </Card>
                 );
               })}
-              {rooms.length === 0 && <p className="text-sm text-muted-foreground">Aucune salle. Ajoutez-en une ci-dessous.</p>}
             </div>
-            <div className="flex flex-wrap gap-2 border-t pt-4">
-              <Input placeholder="Nom de la salle (ex: Plénière, Atelier A)" className="flex-1 min-w-[200px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
-              <Input type="number" placeholder="Capacité (optionnel)" className="w-44" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
-              <Button onClick={addRoom} className="gap-2"><Plus className="h-4 w-4" /> Ajouter</Button>
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Présence en temps réel */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base">Participants & présence (temps réel)</CardTitle>
-              <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv}><Download className="h-4 w-4" /> CSV</Button>
+            <Card>
+              <CardHeader className="pb-3"><CardTitle className="text-base">Gestion des Salles / Ateliers</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  {rooms.map((r) => {
+                    const s = stats(r.id);
+                    return (
+                      <div key={r.id} className="flex flex-wrap items-center gap-2 p-3 border rounded-lg bg-card">
+                        <Input className="flex-1 min-w-[160px]" defaultValue={r.name} onBlur={(e) => e.target.value !== r.name && updateRoom(r, { name: e.target.value })} />
+                        <Input type="number" placeholder="Capacité" className="w-24"
+                          defaultValue={r.capacity ?? ""}
+                          onBlur={(e) => {
+                            const v = e.target.value.trim() ? parseInt(e.target.value) : null;
+                            if (v !== r.capacity) updateRoom(r, { capacity: v });
+                          }} />
+                        <div className="flex gap-1">
+                          <Badge variant="secondary" className="text-[10px]">Inscrits {s.registered}</Badge>
+                          <Badge variant="default" className="text-[10px]">Présents {s.present}</Badge>
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => delRoom(r.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex flex-wrap gap-2 border-t pt-4">
+                  <Input placeholder="Nouvelle salle..." className="flex-1 min-w-[200px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
+                  <Input type="number" placeholder="Capacité" className="w-24" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
+                  <Button onClick={addRoom} className="gap-2"><Plus className="h-4 w-4" /> Ajouter</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="design" className="space-y-6 animate-in fade-in duration-300">
+            <div className="grid md:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader><CardTitle className="text-base">Bannière</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  {ev.banner_url && <img src={ev.banner_url} alt="" className="w-full h-32 object-cover rounded-lg border" />}
+                  <label className="block">
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "banner")} />
+                    <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> Uploader</span></Button>
+                  </label>
+                  {ev.banner_url && (
+                    <div className="pt-2 space-y-1.5">
+                      <Label className="text-xs">Cadrage de l'image</Label>
+                      <select 
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none"
+                        value={ev.banner_position || "center"}
+                        onChange={(e) => setEv({ ...ev, banner_position: e.target.value })}
+                      >
+                        <option value="top">Haut</option>
+                        <option value="center">Centre</option>
+                        <option value="bottom">Bas</option>
+                      </select>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><CardTitle className="text-base">Logo</CardTitle></CardHeader>
+                <CardContent className="space-y-3">
+                  {ev.logo_url && <img src={ev.logo_url} alt="" className="h-32 object-contain rounded-lg border bg-muted mx-auto" />}
+                  <label className="block">
+                    <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "logo")} />
+                    <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> Uploader</span></Button>
+                  </label>
+                </CardContent>
+              </Card>
             </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nom</TableHead>
-                    <TableHead className="hidden sm:table-cell">Email</TableHead>
-                    {rooms.map((r) => <TableHead key={r.id} className="text-center">{r.name}</TableHead>)}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {regs.length === 0 ? (
-                    <TableRow><TableCell colSpan={2 + rooms.length} className="text-center py-6 text-muted-foreground">Aucun inscrit</TableCell></TableRow>
-                  ) : regs.map((r) => (
-                    <TableRow key={r.id}>
-                      <TableCell className="font-medium">{r.first_name} {r.last_name}</TableCell>
-                      <TableCell className="hidden sm:table-cell text-muted-foreground">{r.email}</TableCell>
-                      {rooms.map((rm) => {
-                        const inscrit = r.registration_rooms.some((x) => x.room_id === rm.id);
-                        const present = r.room_check_ins.some((x) => x.room_id === rm.id);
-                        return (
-                          <TableCell key={rm.id} className="text-center">
-                            {!inscrit ? <span className="text-muted-foreground">—</span>
-                              : present ? <Badge>Présent</Badge>
-                              : <Badge variant="secondary">Inscrit</Badge>}
-                          </TableCell>
-                        );
-                      })}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+          </TabsContent>
+
+          <TabsContent value="email" className="space-y-6 animate-in fade-in duration-300">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Message de confirmation</CardTitle>
+                <p className="text-sm text-muted-foreground">Texte envoyé par email après chaque inscription.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Textarea 
+                  rows={8} 
+                  placeholder="Bonjour {{prenom}}, ..." 
+                  value={ev.email_template ?? ""} 
+                  onChange={(e) => setEv({ ...ev, email_template: e.target.value })} 
+                />
+                <div className="bg-muted p-4 rounded-xl text-[10px] space-y-2">
+                  <p className="font-bold uppercase tracking-wider opacity-60">Variables disponibles :</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    <div className="flex flex-col"><code className="text-primary font-bold">{"{{prenom}}"}</code><span>Prénom</span></div>
+                    <div className="flex flex-col"><code className="text-primary font-bold">{"{{nom}}"}</code><span>Nom</span></div>
+                    <div className="flex flex-col"><code className="text-primary font-bold">{"{{evenement}}"}</code><span>Événement</span></div>
+                    <div className="flex flex-col"><code className="text-primary font-bold">{"{{salles}}"}</code><span>Ateliers</span></div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="data" className="space-y-6 animate-in fade-in duration-300">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Participants & Présence</CardTitle>
+                  <Button variant="outline" size="sm" className="gap-2" onClick={exportCsv}><Download className="h-4 w-4" /> Export CSV</Button>
+                </div>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nom complet</TableHead>
+                        <TableHead className="hidden sm:table-cell">Email</TableHead>
+                        {rooms.map((r) => <TableHead key={r.id} className="text-center">{r.name}</TableHead>)}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {regs.length === 0 ? (
+                        <TableRow><TableCell colSpan={2 + rooms.length} className="text-center py-10 text-muted-foreground italic">Aucun inscrit pour le moment</TableCell></TableRow>
+                      ) : regs.map((r) => (
+                        <TableRow key={r.id} className="hover:bg-muted/30">
+                          <TableCell className="font-medium">{r.first_name} {r.last_name}</TableCell>
+                          <TableCell className="hidden sm:table-cell text-muted-foreground">{r.email}</TableCell>
+                          {rooms.map((rm) => {
+                            const inscrit = r.registration_rooms.some((x) => x.room_id === rm.id);
+                            const present = r.room_check_ins.some((x) => x.room_id === rm.id);
+                            return (
+                              <TableCell key={rm.id} className="text-center">
+                                {!inscrit ? <span className="text-slate-300">—</span>
+                                  : present ? <Badge className="bg-emerald-500 hover:bg-emerald-600">Présent</Badge>
+                                  : <Badge variant="secondary" className="bg-blue-50 text-blue-700 hover:bg-blue-100">Inscrit</Badge>}
+                              </TableCell>
+                            );
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
