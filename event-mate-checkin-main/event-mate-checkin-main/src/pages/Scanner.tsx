@@ -88,9 +88,35 @@ const Scanner = () => {
     const { data } = await supabase.from("rooms").select("id,name").eq("event_id", e.id).order("display_order");
     setRooms((data ?? []) as any);
     setStep("room");
+    window.history.pushState({ scannerStep: "room" }, "");
   };
 
-  const pickRoom = (r: RoomOpt) => { setRoom(r); setStep("scan"); };
+  const pickRoom = (r: RoomOpt) => {
+    setRoom(r);
+    setStep("scan");
+    setResult(null);
+    window.history.pushState({ scannerStep: "scan" }, "");
+  };
+
+  // Gestion du bouton retour Android / navigateur
+  useEffect(() => {
+    const handlePopState = async () => {
+      if (step === "scan") {
+        await stopCamera();
+        setStep("room");
+        setRoom(null);
+        setResult(null);
+      } else if (step === "room") {
+        if (id) {
+          navigate("/");
+        } else {
+          setStep("event");
+        }
+      }
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, [step, id]);
 
   const handleScan = async (code: string) => {
     const trimmed = code.trim();
@@ -106,20 +132,14 @@ const Scanner = () => {
 
     if (!reg) { 
       setResult({ status: "notfound", code: trimmed }); 
-      setTimeout(() => {
-        setResult(prev => prev?.code === trimmed ? null : prev);
-        lastScannedRef.current = "";
-      }, 3000);
+      lastScannedRef.current = "";
       return; 
     }
     const r: any = reg;
     const inscritIci = (r.registration_rooms ?? []).some((x: any) => x.room_id === room.id);
     if (!inscritIci) {
       setResult({ status: "notreg", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
-      setTimeout(() => {
-        setResult(prev => prev?.code === r.qr_code ? null : prev);
-        lastScannedRef.current = "";
-      }, 3000);
+      lastScannedRef.current = "";
       return;
     }
     const { data: existing } = await supabase
@@ -127,10 +147,7 @@ const Scanner = () => {
       .eq("registration_id", r.id).eq("room_id", room.id).maybeSingle();
     if (existing) {
       setResult({ status: "already", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
-      setTimeout(() => {
-        setResult(prev => prev?.code === r.qr_code ? null : prev);
-        lastScannedRef.current = "";
-      }, 3000);
+      lastScannedRef.current = "";
       return;
     }
     
@@ -140,10 +157,7 @@ const Scanner = () => {
       return; 
     }
     setResult({ status: "ok", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
-    setTimeout(() => {
-      setResult(prev => prev?.code === r.qr_code ? null : prev);
-      lastScannedRef.current = "";
-    }, 3000);
+    lastScannedRef.current = "";
   };
 
   const startCamera = async () => {
@@ -304,7 +318,7 @@ const Scanner = () => {
         {step === "scan" && (
           <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" className="gap-2 text-slate-500 hover:text-slate-900 transition-colors" onClick={() => { setStep("room"); setRoom(null); setResult(null); }}>
+              <Button variant="ghost" size="sm" className="gap-2 text-slate-500 hover:text-slate-900 transition-colors" onClick={async () => { await stopCamera(); setStep("room"); setRoom(null); setResult(null); }}>
                 <ArrowLeft className="h-4 w-4" /> Changer de salle
               </Button>
               <div className="flex items-center gap-2 text-slate-400">
