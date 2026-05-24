@@ -31,11 +31,14 @@ const Scanner = () => {
   const [manualCode, setManualCode] = useState("");
   const [result, setResult] = useState<ScanResult | null>(null);
   const [scanning, setScanning] = useState(false);
+  const [loading, setLoading] = useState(true);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScannedRef = useRef<string>("");
+  const isStoppingRef = useRef(false);
 
   useEffect(() => {
     const init = async () => {
+      setLoading(true);
       if (!id) {
         // Mode liste (nécessite connexion)
         const { data: { user } } = await supabase.auth.getUser();
@@ -46,6 +49,7 @@ const Scanner = () => {
         } else {
           navigate("/scanner/login");
         }
+        setLoading(false);
         return;
       }
 
@@ -72,6 +76,7 @@ const Scanner = () => {
         console.error("Erreur chargement événement:", evErr);
         // Si l'ID est invalide ou bloqué, l'UI affichera "Événement introuvable"
       }
+      setLoading(false);
     };
 
     init();
@@ -99,11 +104,22 @@ const Scanner = () => {
       .eq("event_id", event.id)
       .maybeSingle();
 
-    if (!reg) { setResult({ status: "notfound", code: trimmed }); return; }
+    if (!reg) { 
+      setResult({ status: "notfound", code: trimmed }); 
+      setTimeout(() => {
+        setResult(prev => prev?.code === trimmed ? null : prev);
+        lastScannedRef.current = "";
+      }, 3000);
+      return; 
+    }
     const r: any = reg;
     const inscritIci = (r.registration_rooms ?? []).some((x: any) => x.room_id === room.id);
     if (!inscritIci) {
       setResult({ status: "notreg", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
+      setTimeout(() => {
+        setResult(prev => prev?.code === r.qr_code ? null : prev);
+        lastScannedRef.current = "";
+      }, 3000);
       return;
     }
     const { data: existing } = await supabase
@@ -111,6 +127,10 @@ const Scanner = () => {
       .eq("registration_id", r.id).eq("room_id", room.id).maybeSingle();
     if (existing) {
       setResult({ status: "already", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
+      setTimeout(() => {
+        setResult(prev => prev?.code === r.qr_code ? null : prev);
+        lastScannedRef.current = "";
+      }, 3000);
       return;
     }
     
@@ -120,9 +140,14 @@ const Scanner = () => {
       return; 
     }
     setResult({ status: "ok", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
+    setTimeout(() => {
+      setResult(prev => prev?.code === r.qr_code ? null : prev);
+      lastScannedRef.current = "";
+    }, 3000);
   };
 
   const startCamera = async () => {
+    if (scanning || scannerRef.current) return;
     setResult(null); setScanning(true);
     try {
       const s = new Html5Qrcode("qr-reader"); scannerRef.current = s;
@@ -131,25 +156,53 @@ const Scanner = () => {
           if (text === lastScannedRef.current) return;
           lastScannedRef.current = text;
           handleScan(text);
-          setTimeout(() => {
-            stopCamera();
-          }, 100);
         }, () => {});
-    } catch {
+    } catch (err) {
+      console.error("Erreur lors du démarrage de la caméra:", err);
+      scannerRef.current = null;
       setScanning(false);
       toast({ title: "Caméra inaccessible", variant: "destructive" });
     }
   };
+
   const stopCamera = async () => {
-    if (scannerRef.current?.isScanning) await scannerRef.current.stop().catch(() => {});
-    scannerRef.current = null; setScanning(false);
-    setTimeout(() => { lastScannedRef.current = ""; }, 1500);
+    if (isStoppingRef.current) return;
+    isStoppingRef.current = true;
+    try {
+      if (scannerRef.current) {
+        const s = scannerRef.current;
+        scannerRef.current = null;
+        if (s.isScanning) {
+          await s.stop();
+          console.log("Caméra arrêtée avec succès.");
+        }
+      }
+    } catch (err) {
+      console.error("Erreur lors de l'arrêt de la caméra:", err);
+    } finally {
+      isStoppingRef.current = false;
+      setTimeout(() => {
+        setScanning(false);
+      }, 300);
+      setTimeout(() => { lastScannedRef.current = ""; }, 1500);
+    }
   };
 
   const handleLogout = async () => {
-    if (scannerRef.current?.isScanning) await scannerRef.current.stop().catch(() => {});
+    await stopCamera();
     navigate("/");
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center font-sans">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin" />
+          <p className="text-slate-500 font-medium animate-pulse">Chargement de l'événement...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
