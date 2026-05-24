@@ -35,6 +35,7 @@ const Scanner = () => {
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const lastScannedRef = useRef<string>("");
   const isStoppingRef = useRef(false);
+  const scanCooldownRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const init = async () => {
@@ -139,7 +140,6 @@ const Scanner = () => {
     const inscritIci = (r.registration_rooms ?? []).some((x: any) => x.room_id === room.id);
     if (!inscritIci) {
       setResult({ status: "notreg", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
-      lastScannedRef.current = "";
       return;
     }
     const { data: existing } = await supabase
@@ -147,7 +147,6 @@ const Scanner = () => {
       .eq("registration_id", r.id).eq("room_id", room.id).maybeSingle();
     if (existing) {
       setResult({ status: "already", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
-      lastScannedRef.current = "";
       return;
     }
     
@@ -157,7 +156,6 @@ const Scanner = () => {
       return; 
     }
     setResult({ status: "ok", firstName: r.first_name, lastName: r.last_name, code: r.qr_code });
-    lastScannedRef.current = "";
   };
 
   const startCamera = async () => {
@@ -170,6 +168,11 @@ const Scanner = () => {
           if (text === lastScannedRef.current) return;
           lastScannedRef.current = text;
           handleScan(text);
+          // Cooldown 3 secondes : interdit le re-scan du même code
+          if (scanCooldownRef.current) clearTimeout(scanCooldownRef.current);
+          scanCooldownRef.current = setTimeout(() => {
+            lastScannedRef.current = "";
+          }, 3000);
         }, () => {});
     } catch (err) {
       console.error("Erreur lors du démarrage de la caméra:", err);
