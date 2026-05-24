@@ -49,12 +49,13 @@ const Scanner = () => {
         return;
       }
 
-      // Mode direct (Staff via lien)
-      console.log("Tentative de chargement direct ID:", id);
+      // Mode direct (Staff via lien) - nettoyage de l'ID si suffixe 'QR' ajouté par un scanner
+      const cleanId = id ? id.replace(/QR$/i, "") : "";
+      console.log("Tentative de chargement direct ID:", id, "ID nettoyé:", cleanId);
       const { data: ev, error: evErr } = await supabase
         .from("events")
         .select("*")
-        .eq("id", id)
+        .eq("id", cleanId)
         .maybeSingle();
 
       if (ev) {
