@@ -131,7 +131,9 @@ const Scanner = () => {
           if (text === lastScannedRef.current) return;
           lastScannedRef.current = text;
           handleScan(text);
-          stopCamera();
+          setTimeout(() => {
+            stopCamera();
+          }, 100);
         }, () => {});
     } catch {
       setScanning(false);
