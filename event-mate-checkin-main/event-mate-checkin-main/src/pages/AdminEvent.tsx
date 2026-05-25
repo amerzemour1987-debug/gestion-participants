@@ -9,7 +9,7 @@ import { Progress } from "@/components/ui/progress";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Save, Plus, Trash2, Upload, Copy, ExternalLink, Download, Clock } from "lucide-react";
+import { ArrowLeft, Save, Plus, Trash2, Upload, Copy, ExternalLink, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -17,11 +17,11 @@ interface EventRow {
   id: string; title: string; subtitle: string; description: string;
   event_date: string | null; time_range: string; location: string;
   banner_url: string | null; banner_position: string; logo_url: string | null; 
-  program_url: string | null;
   email_template: string | null;
   slug: string; is_active: boolean;
+  client_pin: string | null;
 }
-interface RoomRow { id: string; name: string; capacity: number | null; display_order: number; time_slot?: string | null; }
+interface RoomRow { id: string; name: string; capacity: number | null; display_order: number; }
 interface RegRow {
   id: string; first_name: string; last_name: string; email: string; phone: string; created_at: string;
   registration_rooms: { room_id: string }[];
@@ -38,7 +38,6 @@ const AdminEvent = () => {
   const [saving, setSaving] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomCap, setNewRoomCap] = useState("");
-  const [newRoomSlot, setNewRoomSlot] = useState("");
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -76,30 +75,32 @@ const AdminEvent = () => {
     const { error } = await supabase.from("events").update({
       title: ev.title, subtitle: ev.subtitle, description: ev.description,
       event_date: ev.event_date, time_range: ev.time_range, location: ev.location,
-      is_active: ev.is_active,
-      program_url: ev.program_url,
+      is_active: ev.is_active, banner_position: ev.banner_position || 'center',
       email_template: ev.email_template,
+      client_pin: ev.client_pin || null,
     }).eq("id", ev.id);
     setSaving(false);
     toast({ title: error ? "Erreur" : "Enregistré", description: error?.message, variant: error ? "destructive" : "default" });
   };
 
-  const uploadAsset = async (file: File, kind: "banner" | "logo" | "program") => {
-    const safeName = file.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.-]/g, "_");
-    const path = `${ev.id}/${kind}-${Date.now()}-${safeName}`;
-    
+  const deleteRegistration = async (regId: string, name: string) => {
+    if (!confirm(`Supprimer "${name}" ? Cette action est irréversible.`)) return;
+    await supabase.from("room_check_ins").delete().eq("registration_id", regId);
+    await supabase.from("registration_rooms").delete().eq("registration_id", regId);
+    const { error } = await supabase.from("registrations").delete().eq("id", regId);
+    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    else { toast({ title: "Participant supprimé" }); load(); }
+  };
+
+  const uploadAsset = async (file: File, kind: "banner" | "logo") => {
+    const path = `${ev.id}/${kind}-${Date.now()}-${file.name}`;
     const { error } = await supabase.storage.from("event-assets").upload(path, file, { upsert: true });
     if (error) { toast({ title: "Upload erreur", description: error.message, variant: "destructive" }); return; }
     const { data } = supabase.storage.from("event-assets").getPublicUrl(path);
-    
-    let patch = {};
-    if (kind === "banner") patch = { banner_url: data.publicUrl };
-    else if (kind === "logo") patch = { logo_url: data.publicUrl };
-    else patch = { program_url: data.publicUrl };
-
+    const patch = kind === "banner" ? { banner_url: data.publicUrl } : { logo_url: data.publicUrl };
     await supabase.from("events").update(patch).eq("id", ev.id);
     setEv({ ...ev, ...patch });
-    toast({ title: kind === "program" ? "Programme mis à jour" : "Image mise à jour" });
+    toast({ title: "Image mise à jour" });
   };
 
   const addRoom = async () => {
@@ -107,10 +108,9 @@ const AdminEvent = () => {
     const cap = newRoomCap.trim() ? parseInt(newRoomCap) : null;
     const { error } = await supabase.from("rooms").insert({
       event_id: ev.id, name: newRoomName.trim(), capacity: cap, display_order: rooms.length,
-      time_slot: newRoomSlot.trim() || null
     });
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else { setNewRoomName(""); setNewRoomCap(""); setNewRoomSlot(""); load(); }
+    else { setNewRoomName(""); setNewRoomCap(""); load(); }
   };
 
   const updateRoom = async (r: RoomRow, patch: Partial<RoomRow>) => {
@@ -209,15 +209,10 @@ const AdminEvent = () => {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b bg-card sticky top-0 z-10 shadow-sm">
+      <header className="border-b bg-card sticky top-0 z-10">
         <div className="container max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" asChild className="rounded-full"><Link to="/admin"><ArrowLeft className="h-4 w-4" /></Link></Button>
-            {ev.logo_url && (
-              <div className="h-10 w-10 rounded-lg bg-white border shadow-sm p-1 hidden sm:block">
-                <img src={ev.logo_url} alt="" className="h-full w-full object-contain" />
-              </div>
-            )}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="sm" asChild><Link to="/admin"><ArrowLeft className="h-4 w-4" /></Link></Button>
             <div>
               <h1 className="text-xl font-bold truncate max-w-[200px] sm:max-w-md">{ev.title}</h1>
               <p className="text-xs text-muted-foreground">Tableau de bord de l'événement</p>
@@ -254,6 +249,54 @@ const AdminEvent = () => {
                 <Input value={regUrl} readOnly className="bg-muted" />
                 <Button variant="outline" size="icon" onClick={copyLink}><Copy className="h-4 w-4" /></Button>
                 <Button variant="outline" size="icon" asChild><a href={regUrl} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
+              </CardContent>
+            </Card>
+
+            {/* Client Dashboard Card */}
+            <Card className="border-blue-200 bg-blue-50/50">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  <CardTitle className="text-base text-blue-800">Dashboard Client (lecture seule)</CardTitle>
+                </div>
+                <p className="text-xs text-muted-foreground">Partagez ce lien + code PIN avec votre client pour qu'il suive l'événement en temps réel.</p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+                  <div className="flex-1 space-y-1">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Code PIN client (4 chiffres)</label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={4}
+                        placeholder="Ex: 1234"
+                        value={ev.client_pin ?? ""}
+                        onChange={(e) => {
+                          const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          setEv({ ...ev, client_pin: v || null });
+                        }}
+                        className="w-32 bg-white font-mono text-lg tracking-widest text-center"
+                      />
+                      <Button onClick={saveEvent} disabled={saving} size="sm" className="gap-1">
+                        <Save className="h-3.5 w-3.5" /> Enregistrer
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                {ev.client_pin && ev.client_pin.length === 4 && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Lien dashboard client</label>
+                    <div className="flex gap-2">
+                      <Input value={`${window.location.origin}/dashboard/${ev.id}`} readOnly className="bg-white text-sm" />
+                      <Button variant="outline" size="icon" onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/dashboard/${ev.id}`); toast({ title: "Lien copié" }); }}><Copy className="h-4 w-4" /></Button>
+                      <Button variant="outline" size="icon" asChild><a href={`${window.location.origin}/dashboard/${ev.id}`} target="_blank"><ExternalLink className="h-4 w-4" /></a></Button>
+                    </div>
+                    <div className="bg-blue-100 border border-blue-200 rounded-lg p-3">
+                      <p className="text-xs text-blue-700"><strong>Instructions :</strong> Envoyez le lien + le code PIN <strong>{ev.client_pin}</strong> à votre client. Il pourra suivre l'événement en temps réel sans accéder à vos réglages.</p>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -347,31 +390,25 @@ const AdminEvent = () => {
                   {rooms.map((r) => {
                     const s = stats(r.id);
                     return (
-                      <div key={r.id} className="flex flex-wrap items-center gap-2 p-3 border rounded-lg bg-card group">
-                        <Input className="flex-1 min-w-[160px] font-bold" defaultValue={r.name} onBlur={(e) => e.target.value !== r.name && updateRoom(r, { name: e.target.value })} />
-                        <div className="flex items-center gap-2 bg-slate-50 px-2 rounded-md border border-slate-100">
-                          <span className="text-[10px] font-black text-slate-400 uppercase">Slot</span>
-                          <Input className="w-24 h-8 text-xs border-transparent bg-transparent" placeholder="ex: Matin" 
-                            defaultValue={r.time_slot ?? ""}
-                            onBlur={(e) => e.target.value !== (r.time_slot ?? "") && updateRoom(r, { time_slot: e.target.value || null })} />
-                        </div>
-                        <Input type="number" placeholder="Cap" className="w-16 h-8 text-xs"
+                      <div key={r.id} className="flex flex-wrap items-center gap-2 p-3 border rounded-lg bg-card">
+                        <Input className="flex-1 min-w-[160px]" defaultValue={r.name} onBlur={(e) => e.target.value !== r.name && updateRoom(r, { name: e.target.value })} />
+                        <Input type="number" placeholder="Capacité" className="w-24"
                           defaultValue={r.capacity ?? ""}
                           onBlur={(e) => {
                             const v = e.target.value.trim() ? parseInt(e.target.value) : null;
                             if (v !== r.capacity) updateRoom(r, { capacity: v });
                           }} />
                         <div className="flex gap-1">
-                          <Badge variant="secondary" className="text-[10px]">{s.registered} Inscr.</Badge>
+                          <Badge variant="secondary" className="text-[10px]">Inscrits {s.registered}</Badge>
+                          <Badge variant="default" className="text-[10px]">Présents {s.present}</Badge>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => delRoom(r.id)} className="text-slate-300 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all"><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" onClick={() => delRoom(r.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     );
                   })}
                 </div>
                 <div className="flex flex-wrap gap-2 border-t pt-4">
-                  <Input placeholder="Nom de l'atelier..." className="flex-1 min-w-[150px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
-                  <Input placeholder="Slot (ex: Matin)" className="w-32" value={newRoomSlot} onChange={(e) => setNewRoomSlot(e.target.value)} />
+                  <Input placeholder="Nouvelle salle..." className="flex-1 min-w-[200px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
                   <Input type="number" placeholder="Capacité" className="w-24" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
                   <Button onClick={addRoom} className="gap-2"><Plus className="h-4 w-4" /> Ajouter</Button>
                 </div>
@@ -412,25 +449,6 @@ const AdminEvent = () => {
                   <label className="block">
                     <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "logo")} />
                     <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> Uploader</span></Button>
-                  </label>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader><CardTitle className="text-base">Programme (PDF/Image)</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                  {ev.program_url && (
-                    <div className="p-4 border rounded-lg bg-emerald-50 border-emerald-100 text-center">
-                      <Download className="h-8 w-8 text-emerald-600 mx-auto mb-2" />
-                      <p className="text-xs font-bold text-emerald-700 uppercase">Fichier chargé</p>
-                      <Button variant="link" size="sm" asChild className="text-emerald-600 font-bold">
-                        <a href={ev.program_url} target="_blank" rel="noopener noreferrer">Voir le fichier</a>
-                      </Button>
-                    </div>
-                  )}
-                  <label className="block">
-                    <input type="file" className="hidden" onChange={(e) => e.target.files?.[0] && uploadAsset(e.target.files[0], "program")} />
-                    <Button variant="outline" className="w-full gap-2" asChild><span><Upload className="h-4 w-4" /> {ev.program_url ? "Remplacer" : "Uploader"}</span></Button>
                   </label>
                 </CardContent>
               </Card>
@@ -497,13 +515,14 @@ const AdminEvent = () => {
                         <TableHead>Nom complet</TableHead>
                         <TableHead className="hidden sm:table-cell">Email</TableHead>
                         {rooms.map((r) => <TableHead key={r.id} className="text-center">{r.name}</TableHead>)}
+                        <TableHead className="w-10" />
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {regs.length === 0 ? (
-                        <TableRow><TableCell colSpan={2 + rooms.length} className="text-center py-10 text-muted-foreground italic">Aucun inscrit pour le moment</TableCell></TableRow>
+                        <TableRow><TableCell colSpan={3 + rooms.length} className="text-center py-10 text-muted-foreground italic">Aucun inscrit pour le moment</TableCell></TableRow>
                       ) : regs.map((r) => (
-                        <TableRow key={r.id} className="hover:bg-muted/30">
+                        <TableRow key={r.id} className="hover:bg-muted/30 group">
                           <TableCell className="font-medium">{r.first_name} {r.last_name}</TableCell>
                           <TableCell className="hidden sm:table-cell text-muted-foreground">{r.email}</TableCell>
                           {rooms.map((rm) => {
@@ -517,6 +536,15 @@ const AdminEvent = () => {
                               </TableCell>
                             );
                           })}
+                          <TableCell>
+                            <Button
+                              variant="ghost" size="icon"
+                              className="h-8 w-8 text-destructive opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive/10"
+                              onClick={() => deleteRegistration(r.id, `${r.first_name} ${r.last_name}`)}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
