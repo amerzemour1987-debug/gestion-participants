@@ -274,69 +274,64 @@ const ClientDashboard = () => {
 
       <main className="container max-w-5xl mx-auto px-4 py-6 space-y-6">
 
-        {/* Global stats */}
-        <div className="grid grid-cols-3 gap-3">
-          {[
-            { icon: Users, label: "Inscrits", value: regs.length, color: "text-slate-900", accent: "" },
-            { icon: UserCheck, label: "Présents", value: totalPresent, color: "text-emerald-600", accent: "border-l-4 border-emerald-500" },
-            { icon: BarChart3, label: "Présence", value: `${attendanceRate}%`, color: "text-slate-900", accent: "" },
-          ].map(({ icon: Icon, label, value, color, accent }) => (
-            <Card key={label} className={`border-0 shadow-sm ${accent}`}>
-              <CardContent className="p-4 flex flex-col items-center justify-center gap-1">
-                <Icon className={`h-4 w-4 ${color} opacity-50`} />
-                <p className={`text-2xl sm:text-3xl font-black ${color}`}>{value}</p>
-                <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{label}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {/* Room cards */}
+        {/* Stats par salle */}
         <div>
-          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-1">Remplissage des salles</h2>
+          <h2 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 px-1">Statistiques par salle</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {rooms.map((room) => {
               const s = roomStats(room.id);
+              const rate = s.registered > 0 ? Math.round((s.present / s.registered) * 100) : 0;
               const percent = room.capacity ? Math.min(Math.round((s.registered / room.capacity) * 100), 100) : 0;
               const active = isScanActive(room.id);
-              const lastScanTime = formatLastScan(room.id);
               const barColor = percent >= 100 ? "bg-red-500" : percent > 70 ? "bg-orange-500" : "bg-emerald-500";
 
               return (
-                <Card key={room.id} className="border-0 shadow-sm overflow-hidden hover:shadow-md transition-shadow">
-                  <CardContent className="p-5 space-y-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <p className="font-bold text-slate-900 truncate">{room.name}</p>
-                      {room.capacity && (
-                        <Badge className={`shrink-0 border-0 font-bold text-xs ${percent >= 100 ? "bg-red-100 text-red-700" : percent > 70 ? "bg-orange-100 text-orange-700" : "bg-slate-100 text-slate-600"}`}>
-                          {percent}%
-                        </Badge>
-                      )}
+                <Card key={room.id} className="border-0 shadow-sm overflow-hidden">
+                  <CardContent className="p-0">
+                    {/* En-tête salle */}
+                    <div className={`px-4 py-2.5 flex items-center justify-between ${active ? "bg-emerald-50 border-b border-emerald-100" : "bg-slate-50 border-b border-slate-100"}`}>
+                      <div className="flex items-center gap-2">
+                        <p className="font-bold text-slate-800 text-sm truncate">{room.name}</p>
+                        {room.capacity && (
+                          <Badge className={`shrink-0 border-0 font-bold text-[10px] px-1.5 py-0 leading-none h-4 flex items-center ${percent >= 100 ? "bg-red-100 text-red-700" : percent > 70 ? "bg-orange-100 text-orange-700" : "bg-slate-200 text-slate-600"}`}>
+                            {percent}%
+                          </Badge>
+                        )}
+                      </div>
+                      <div className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full ${active ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-400"}`}>
+                        {active ? <Wifi className="h-2.5 w-2.5" /> : <WifiOff className="h-2.5 w-2.5" />}
+                        <span>{active ? "Scan actif" : formatLastScan(room.id)}</span>
+                      </div>
                     </div>
 
+                    {/* Progress Bar */}
                     {room.capacity ? (
-                      <>
-                        <Progress value={percent} className="h-2" indicatorClassName={barColor} />
-                        <p className="text-xs text-slate-500">{s.registered} inscrits / {room.capacity} places</p>
-                      </>
+                      <div className="px-4 py-2 border-b border-slate-100 bg-white">
+                        <Progress value={percent} className="h-1.5" indicatorClassName={barColor} />
+                        <p className="text-[10px] text-slate-500 mt-1">{s.registered} inscrits / {room.capacity} places</p>
+                      </div>
                     ) : (
-                      <p className="text-xs text-slate-500">{s.registered} inscrits · Capacité illimitée</p>
+                      <div className="px-4 py-2 border-b border-slate-100 bg-white">
+                        <p className="text-[10px] text-slate-500 mt-1">{s.registered} inscrits · Capacité illimitée</p>
+                      </div>
                     )}
 
-                    <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${active ? "bg-emerald-100" : "bg-slate-100"}`}>
-                          <UserCheck className={`h-4 w-4 ${active ? "text-emerald-600" : "text-slate-400"}`} />
-                        </div>
-                        <div>
-                          <p className={`text-lg font-black leading-none ${active ? "text-emerald-600" : "text-slate-400"}`}>{s.present}</p>
-                          <p className="text-[10px] text-slate-400 leading-none mt-0.5">présents</p>
-                        </div>
+                    {/* Chiffres */}
+                    <div className="grid grid-cols-3 divide-x divide-slate-100 bg-white">
+                      <div className="p-3 flex flex-col items-center gap-0.5">
+                        <Users className="h-3.5 w-3.5 text-slate-400" />
+                        <p className="text-xl font-black text-slate-800">{s.registered}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Inscrits</p>
                       </div>
-
-                      <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold ${active ? "bg-emerald-50 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-400 border border-slate-200"}`}>
-                        {active ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-                        <span>{active ? "Scan actif" : lastScanTime}</span>
+                      <div className="p-3 flex flex-col items-center gap-0.5">
+                        <UserCheck className="h-3.5 w-3.5 text-emerald-500" />
+                        <p className={`text-xl font-black ${s.present > 0 ? "text-emerald-600" : "text-slate-300"}`}>{s.present}</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Présents</p>
+                      </div>
+                      <div className="p-3 flex flex-col items-center gap-0.5">
+                        <BarChart3 className="h-3.5 w-3.5 text-slate-400" />
+                        <p className={`text-xl font-black ${rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-orange-500" : "text-slate-600"}`}>{rate}%</p>
+                        <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Présence</p>
                       </div>
                     </div>
                   </CardContent>
