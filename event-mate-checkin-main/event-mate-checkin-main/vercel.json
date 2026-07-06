@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/inscription/:slug",
+      "destination": "/api/inscription?slug=:slug"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
