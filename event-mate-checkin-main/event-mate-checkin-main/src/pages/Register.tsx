@@ -67,48 +67,14 @@ const Register = () => {
     });
   };
 
-  const getFormattedPhone = (phone: string) => {
-    const clean = phone.replace(/[\s\-\.\(\)]/g, "");
-    if (clean.startsWith("+213")) {
-      return "0" + clean.slice(4);
-    }
-    if (clean.startsWith("00213")) {
-      return "0" + clean.slice(5);
-    }
-    return clean;
-  };
-
   const validate = () => {
     const e: Record<string,string> = {};
-    if (!form.firstName.trim()) {
-      e.firstName = "Requis";
-    } else if (form.firstName.trim().length < 2) {
-      e.firstName = "Minimum 2 caractères";
-    }
-    
-    if (!form.lastName.trim()) {
-      e.lastName = "Requis";
-    } else if (form.lastName.trim().length < 2) {
-      e.lastName = "Minimum 2 caractères";
-    }
-    
-    if (!form.email.trim()) {
-      e.email = "Requis";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
-      e.email = "Email invalide";
-    }
-    
-    const formattedPhone = getFormattedPhone(form.phone);
-    if (!form.phone.trim()) {
-      e.phone = "Requis";
-    } else if (!/^(05|06|07)\d{8}$/.test(formattedPhone)) {
-      e.phone = "Format invalide (ex: 05XXXXXXXX)";
-    }
-    
-    if (rooms.length > 1 && selectedRooms.size === 0) {
-      e.rooms = "Sélectionnez au moins une salle";
-    }
-    
+    if (!form.firstName.trim()) e.firstName = "Requis";
+    if (!form.lastName.trim()) e.lastName = "Requis";
+    if (!form.email.trim()) e.email = "Requis";
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = "Email invalide";
+    if (!form.phone.trim()) e.phone = "Requis";
+    if (rooms.length > 1 && selectedRooms.size === 0) e.rooms = "Sélectionnez au moins une salle";
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -117,15 +83,12 @@ const Register = () => {
     e.preventDefault();
     if (!validate() || !event) return;
     setLoading(true);
-    
-    const formattedPhone = getFormattedPhone(form.phone);
-    
     const { data, error } = await supabase.rpc("register_participant", {
       _event_id: event.id,
       _first_name: form.firstName.trim(),
       _last_name: form.lastName.trim(),
       _email: form.email.trim().toLowerCase(),
-      _phone: formattedPhone,
+      _phone: form.phone.trim(),
       _room_ids: Array.from(selectedRooms),
     });
     setLoading(false);
@@ -174,7 +137,57 @@ const Register = () => {
         </div>
       )}
 
-      <section className="px-4 pt-12 pb-24 relative z-20">
+      <section className="relative px-4 py-16 md:py-24 overflow-hidden bg-slate-950">
+        {/* Background Effects */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
+          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-accent/20 rounded-full blur-[120px] animate-pulse" />
+        </div>
+        
+        <div className="container max-w-4xl mx-auto text-center relative z-10">
+          {event.subtitle && (
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 text-sm text-white mb-8 transition-transform hover:scale-105 duration-300">
+              <Calendar className="h-4 w-4 text-accent" />
+              <span className="font-medium">{event.subtitle}</span>
+            </div>
+          )}
+          
+          <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight">
+            {event.title.split(' ').map((word, i) => (
+              <span key={i} className={i === 1 ? "text-gradient block md:inline" : ""}>
+                {word}{' '}
+              </span>
+            ))}
+          </h1>
+          
+          {event.description && (
+            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-10 whitespace-pre-line leading-relaxed">
+              {event.description}
+            </p>
+          )}
+          
+          <div className="flex flex-wrap items-center justify-center gap-8 text-sm font-medium text-slate-400">
+            {event.time_range && (
+              <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
+                <Clock className="h-4 w-4 text-primary" />
+                {event.time_range}
+              </span>
+            )}
+            {event.location && (
+              <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
+                <MapPin className="h-4 w-4 text-primary" />
+                {event.location}
+              </span>
+            )}
+            <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
+              <Users className="h-4 w-4 text-primary" />
+              Places limitées
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section className="px-4 -mt-12 pb-24 relative z-20">
         <Card className="container max-w-lg mx-auto shadow-2xl border-white/10 bg-white/80 backdrop-blur-xl">
           <CardContent className="p-8 md:p-12">
             <div className="mb-8 text-center sm:text-left">
