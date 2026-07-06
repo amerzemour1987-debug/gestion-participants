@@ -174,57 +174,7 @@ const Register = () => {
         </div>
       )}
 
-      <section className="relative px-4 py-16 md:py-24 overflow-hidden bg-slate-950">
-        {/* Background Effects */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] bg-primary/20 rounded-full blur-[120px] animate-pulse" />
-          <div className="absolute -bottom-[20%] -right-[10%] w-[50%] h-[50%] bg-accent/20 rounded-full blur-[120px] animate-pulse" />
-        </div>
-        
-        <div className="container max-w-4xl mx-auto text-center relative z-10">
-          {event.subtitle && (
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-md border border-white/20 px-4 py-1.5 text-sm text-white mb-8 transition-transform hover:scale-105 duration-300">
-              <Calendar className="h-4 w-4 text-accent" />
-              <span className="font-medium">{event.subtitle}</span>
-            </div>
-          )}
-          
-          <h1 className="text-5xl md:text-7xl font-black text-white mb-6 tracking-tight leading-tight">
-            {event.title.split(' ').map((word, i) => (
-              <span key={i} className={i === 1 ? "text-gradient block md:inline" : ""}>
-                {word}{' '}
-              </span>
-            ))}
-          </h1>
-          
-          {event.description && (
-            <p className="text-lg md:text-xl text-slate-300 max-w-2xl mx-auto mb-10 whitespace-pre-line leading-relaxed">
-              {event.description}
-            </p>
-          )}
-          
-          <div className="flex flex-wrap items-center justify-center gap-8 text-sm font-medium text-slate-400">
-            {event.time_range && (
-              <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
-                <Clock className="h-4 w-4 text-primary" />
-                {event.time_range}
-              </span>
-            )}
-            {event.location && (
-              <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
-                <MapPin className="h-4 w-4 text-primary" />
-                {event.location}
-              </span>
-            )}
-            <span className="flex items-center gap-2 px-3 py-1 rounded-lg bg-white/5 border border-white/10 backdrop-blur-sm">
-              <Users className="h-4 w-4 text-primary" />
-              Places limitées
-            </span>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4 -mt-12 pb-24 relative z-20">
+      <section className="px-4 pt-12 pb-24 relative z-20">
         <Card className="container max-w-lg mx-auto shadow-2xl border-white/10 bg-white/80 backdrop-blur-xl">
           <CardContent className="p-8 md:p-12">
             <div className="mb-8 text-center sm:text-left">
