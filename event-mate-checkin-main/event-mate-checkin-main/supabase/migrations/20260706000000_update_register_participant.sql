@@ -63,7 +63,8 @@ BEGIN
     WHERE id = rid;
 
     -- Update rooms: delete old rooms and insert new ones
-    DELETE FROM public.registration_rooms WHERE registration_id = rid;
+    -- Prefixing registration_id with the table name to avoid ambiguity with the return parameter name
+    DELETE FROM public.registration_rooms WHERE registration_rooms.registration_id = rid;
     
     IF _room_ids IS NOT NULL THEN
       INSERT INTO public.registration_rooms(registration_id, room_id)
