@@ -42,6 +42,35 @@ const AdminEvent = () => {
   const [newRoomStartTime, setNewRoomStartTime] = useState("");
   const [newRoomEndTime, setNewRoomEndTime] = useState("");
 
+  const load = useCallback(async () => {
+    if (!id) return;
+    const { data: e } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
+    setEv(e as any);
+    const { data: r } = await supabase.from("rooms").select("*").eq("event_id", id).order("display_order");
+    setRooms((r as any) ?? []);
+    const { data: rg } = await supabase
+      .from("registrations")
+      .select("*, registration_rooms(room_id), room_check_ins(room_id, checked_in_at)")
+      .eq("event_id", id)
+      .order("created_at", { ascending: false });
+    setRegs((rg as any) ?? []);
+  }, [id]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) { navigate("/login"); return; }
+      load();
+    })();
+    const ch = supabase
+      .channel(`ev-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "registrations" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "room_check_ins" }, load)
+      .on("postgres_changes", { event: "*", schema: "public", table: "registration_rooms" }, load)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [id, load, navigate]);
+
   const splitIsoDateTime = (isoStr?: string | null) => {
     if (!isoStr) return { date: "", time: "" };
     const d = new Date(isoStr);
@@ -60,6 +89,8 @@ const AdminEvent = () => {
     const d = new Date(`${dateStr}T${time}:00`);
     return isNaN(d.getTime()) ? null : d.toISOString();
   };
+
+  if (!ev) return <div className="min-h-screen flex items-center justify-center">Chargement…</div>;
 
   const addRoom = async () => {
     if (!newRoomName.trim()) return;
