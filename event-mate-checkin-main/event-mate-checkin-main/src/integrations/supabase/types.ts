@@ -19,11 +19,13 @@ export type Database = {
           banner_url: string | null
           created_at: string
           description: string | null
+          email_template: string | null
           event_date: string | null
           id: string
           is_active: boolean
           location: string | null
           logo_url: string | null
+          program_url: string | null
           slug: string
           subtitle: string | null
           time_range: string | null
@@ -34,11 +36,13 @@ export type Database = {
           banner_url?: string | null
           created_at?: string
           description?: string | null
+          email_template?: string | null
           event_date?: string | null
           id?: string
           is_active?: boolean
           location?: string | null
           logo_url?: string | null
+          program_url?: string | null
           slug?: string
           subtitle?: string | null
           time_range?: string | null
@@ -49,11 +53,13 @@ export type Database = {
           banner_url?: string | null
           created_at?: string
           description?: string | null
+          email_template?: string | null
           event_date?: string | null
           id?: string
           is_active?: boolean
           location?: string | null
           logo_url?: string | null
+          program_url?: string | null
           slug?: string
           subtitle?: string | null
           time_range?: string | null
@@ -219,25 +225,31 @@ export type Database = {
           capacity: number | null
           created_at: string
           display_order: number
+          end_time: string | null
           event_id: string
           id: string
           name: string
+          start_time: string | null
         }
         Insert: {
           capacity?: number | null
           created_at?: string
           display_order?: number
+          end_time?: string | null
           event_id: string
           id?: string
           name: string
+          start_time?: string | null
         }
         Update: {
           capacity?: number | null
           created_at?: string
           display_order?: number
+          end_time?: string | null
           event_id?: string
           id?: string
           name?: string
+          start_time?: string | null
         }
         Relationships: [
           {
