@@ -92,6 +92,39 @@ const AdminEvent = () => {
 
   if (!ev) return <div className="min-h-screen flex items-center justify-center">Chargement…</div>;
 
+  const saveEvent = async () => {
+    setSaving(true);
+    const { error } = await supabase.from("events").update({
+      title: ev.title, subtitle: ev.subtitle, description: ev.description,
+      event_date: ev.event_date, time_range: ev.time_range, location: ev.location,
+      is_active: ev.is_active, banner_position: ev.banner_position || 'center',
+      email_template: ev.email_template,
+      client_pin: ev.client_pin || null,
+    }).eq("id", ev.id);
+    setSaving(false);
+    toast({ title: error ? "Erreur" : "Enregistré", description: error?.message, variant: error ? "destructive" : "default" });
+  };
+
+  const deleteRegistration = async (regId: string, name: string) => {
+    if (!confirm(`Supprimer "${name}" ? Cette action est irréversible.`)) return;
+    await supabase.from("room_check_ins").delete().eq("registration_id", regId);
+    await supabase.from("registration_rooms").delete().eq("registration_id", regId);
+    const { error } = await supabase.from("registrations").delete().eq("id", regId);
+    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
+    else { toast({ title: "Participant supprimé" }); load(); }
+  };
+
+  const uploadAsset = async (file: File, kind: "banner" | "logo") => {
+    const path = `${ev.id}/${kind}-${Date.now()}-${file.name}`;
+    const { error } = await supabase.storage.from("event-assets").upload(path, file, { upsert: true });
+    if (error) { toast({ title: "Upload erreur", description: error.message, variant: "destructive" }); return; }
+    const { data } = supabase.storage.from("event-assets").getPublicUrl(path);
+    const patch = kind === "banner" ? { banner_url: data.publicUrl } : { logo_url: data.publicUrl };
+    await supabase.from("events").update(patch).eq("id", ev.id);
+    setEv({ ...ev, ...patch });
+    toast({ title: "Image mise à jour" });
+  };
+
   const addRoom = async () => {
     if (!newRoomName.trim()) return;
     const cap = newRoomCap.trim() ? parseInt(newRoomCap) : null;
