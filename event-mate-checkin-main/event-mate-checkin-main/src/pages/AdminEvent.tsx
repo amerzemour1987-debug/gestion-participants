@@ -21,7 +21,7 @@ interface EventRow {
   slug: string; is_active: boolean;
   client_pin: string | null;
 }
-interface RoomRow { id: string; name: string; capacity: number | null; display_order: number; }
+interface RoomRow { id: string; name: string; capacity: number | null; display_order: number; start_time?: string | null; end_time?: string | null; }
 interface RegRow {
   id: string; first_name: string; last_name: string; email: string; phone: string; created_at: string;
   registration_rooms: { room_id: string }[];
@@ -38,6 +38,8 @@ const AdminEvent = () => {
   const [saving, setSaving] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomCap, setNewRoomCap] = useState("");
+  const [newRoomStart, setNewRoomStart] = useState("");
+  const [newRoomEnd, setNewRoomEnd] = useState("");
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -107,10 +109,15 @@ const AdminEvent = () => {
     if (!newRoomName.trim()) return;
     const cap = newRoomCap.trim() ? parseInt(newRoomCap) : null;
     const { error } = await supabase.from("rooms").insert({
-      event_id: ev.id, name: newRoomName.trim(), capacity: cap, display_order: rooms.length,
+      event_id: ev.id, 
+      name: newRoomName.trim(), 
+      capacity: cap, 
+      start_time: newRoomStart ? new Date(newRoomStart).toISOString() : null,
+      end_time: newRoomEnd ? new Date(newRoomEnd).toISOString() : null,
+      display_order: rooms.length,
     });
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else { setNewRoomName(""); setNewRoomCap(""); load(); }
+    else { setNewRoomName(""); setNewRoomCap(""); setNewRoomStart(""); setNewRoomEnd(""); load(); }
   };
 
   const updateRoom = async (r: RoomRow, patch: Partial<RoomRow>) => {
@@ -390,26 +397,44 @@ const AdminEvent = () => {
                   {rooms.map((r) => {
                     const s = stats(r.id);
                     return (
-                      <div key={r.id} className="flex flex-wrap items-center gap-2 p-3 border rounded-lg bg-card">
+                      <div key={r.id} className="flex flex-col lg:flex-row flex-wrap items-start lg:items-center gap-2 p-3 border rounded-lg bg-card">
                         <Input className="flex-1 min-w-[160px]" defaultValue={r.name} onBlur={(e) => e.target.value !== r.name && updateRoom(r, { name: e.target.value })} />
-                        <Input type="number" placeholder="Capacité" className="w-24"
+                        <Input type="number" placeholder="Capacité" className="w-24 text-xs"
                           defaultValue={r.capacity ?? ""}
                           onBlur={(e) => {
                             const v = e.target.value.trim() ? parseInt(e.target.value) : null;
                             if (v !== r.capacity) updateRoom(r, { capacity: v });
                           }} />
-                        <div className="flex gap-1">
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <span className="shrink-0">Début:</span>
+                          <Input type="datetime-local" className="w-40 h-9 text-xs"
+                            defaultValue={r.start_time ? new Date(new Date(r.start_time).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : ""}
+                            onBlur={(e) => {
+                              const v = e.target.value ? new Date(e.target.value).toISOString() : null;
+                              if (v !== r.start_time) updateRoom(r, { start_time: v });
+                            }} />
+                          <span className="shrink-0">Fin:</span>
+                          <Input type="datetime-local" className="w-40 h-9 text-xs"
+                            defaultValue={r.end_time ? new Date(new Date(r.end_time).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : ""}
+                            onBlur={(e) => {
+                              const v = e.target.value ? new Date(e.target.value).toISOString() : null;
+                              if (v !== r.end_time) updateRoom(r, { end_time: v });
+                            }} />
+                        </div>
+                        <div className="flex gap-1 items-center ml-auto">
                           <Badge variant="secondary" className="text-[10px]">Inscrits {s.registered}</Badge>
                           <Badge variant="default" className="text-[10px]">Présents {s.present}</Badge>
+                          <Button variant="ghost" size="icon" onClick={() => delRoom(r.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => delRoom(r.id)} className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                       </div>
                     );
                   })}
                 </div>
-                <div className="flex flex-wrap gap-2 border-t pt-4">
-                  <Input placeholder="Nouvelle salle..." className="flex-1 min-w-[200px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
-                  <Input type="number" placeholder="Capacité" className="w-24" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
+                <div className="flex flex-col lg:flex-row flex-wrap gap-2 border-t pt-4">
+                  <Input placeholder="Nouvelle salle..." className="flex-1 min-w-[180px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
+                  <Input type="number" placeholder="Capacité" className="w-24 text-xs" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
+                  <Input type="datetime-local" title="Début" className="w-40 h-9 text-xs" value={newRoomStart} onChange={(e) => setNewRoomStart(e.target.value)} />
+                  <Input type="datetime-local" title="Fin" className="w-40 h-9 text-xs" value={newRoomEnd} onChange={(e) => setNewRoomEnd(e.target.value)} />
                   <Button onClick={addRoom} className="gap-2"><Plus className="h-4 w-4" /> Ajouter</Button>
                 </div>
               </CardContent>
