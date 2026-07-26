@@ -18,6 +18,7 @@ interface EventRow {
 }
 interface RoomRow {
   id: string; name: string; capacity: number | null; display_order: number;
+  start_time?: string | null; end_time?: string | null;
   registered: number;
 }
 
@@ -32,6 +33,50 @@ const Register = () => {
   const [form, setForm] = useState({ firstName: "", lastName: "", email: "", phone: "" });
   const [errors, setErrors] = useState<Record<string,string>>({});
   const [loading, setLoading] = useState(false);
+
+  const isExpired = (r: RoomRow) => {
+    const now = new Date();
+    if (r.end_time) return new Date(r.end_time) < now;
+    if (r.start_time) return new Date(r.start_time) < now;
+    return false;
+  };
+
+  const getRoomTimeInfo = (r: RoomRow) => {
+    const start: Date | null = r.start_time ? new Date(r.start_time) : null;
+    const end: Date | null = r.end_time ? new Date(r.end_time) : null;
+    let slotKey = "";
+
+    const timeMatch = r.name.match(/(\d{1,2})[h:](\d{2})?/i);
+    const dateMatch = r.name.match(/(\d{1,2})[\/\s](Juin|Juillet|Août|Septembre|Octobre|Novembre|Décembre|Janvier|Février|Mars|Avril|\d{1,2})/i);
+
+    if (timeMatch) {
+      const hour = parseInt(timeMatch[1], 10);
+      const minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
+      const dateStr = dateMatch ? dateMatch[0].trim() : "";
+      slotKey = `${dateStr}-${hour}:${minute}`;
+    }
+
+    return { start, end, slotKey };
+  };
+
+  const isConflict = (r: RoomRow) => {
+    if (selectedRooms.has(r.id)) return false;
+    const rInfo = getRoomTimeInfo(r);
+
+    for (const selectedId of selectedRooms) {
+      const selectedRoom = rooms.find((x) => x.id === selectedId);
+      if (!selectedRoom) continue;
+
+      const sInfo = getRoomTimeInfo(selectedRoom);
+
+      if (rInfo.start && rInfo.end && sInfo.start && sInfo.end) {
+        if (rInfo.start < sInfo.end && rInfo.end > sInfo.start) return true;
+      }
+      if (rInfo.start && sInfo.start && rInfo.start.getTime() === sInfo.start.getTime()) return true;
+      if (rInfo.slotKey && sInfo.slotKey && rInfo.slotKey === sInfo.slotKey) return true;
+    }
+    return false;
+  };
 
   useEffect(() => {
     (async () => {
@@ -51,8 +96,9 @@ const Register = () => {
         enriched.push({ ...(r as any), registered: count ?? 0 });
       }
       setRooms(enriched);
-      // Auto-select if only 1 room
-      if (enriched.length === 1) setSelectedRooms(new Set([enriched[0].id]));
+      // Auto-select if only 1 valid room
+      const valid = enriched.filter((x) => x.capacity === null || x.registered < x.capacity);
+      if (valid.length === 1) setSelectedRooms(new Set([valid[0].id]));
       setLoadingPage(false);
     })();
   }, [slug]);
@@ -211,18 +257,34 @@ const Register = () => {
                   <div className="space-y-2">
                     {rooms.map((r) => {
                       const full = isFull(r);
+                      const expired = isExpired(r);
+                      const conflict = isConflict(r);
+                      const disabled = full || expired || conflict;
+
+                      let statusText = "";
+                      if (expired) {
+                        statusText = "Date / heure passée (Inscriptions fermées)";
+                      } else if (full) {
+                        statusText = "Plus de place pour cette salle";
+                      } else if (conflict) {
+                        statusText = "Créneau en conflit avec votre sélection";
+                      } else if (r.capacity) {
+                        statusText = `${r.registered}/${r.capacity} inscrits`;
+                      } else {
+                        statusText = "Inscriptions ouvertes";
+                      }
+
                       return (
-                        <label key={r.id} className={`flex items-start gap-3 p-3 border rounded-lg ${full ? "opacity-50 cursor-not-allowed bg-muted" : "cursor-pointer hover:bg-accent"}`}>
+                        <label key={r.id} className={`flex items-start gap-3 p-3 border rounded-lg ${disabled ? "opacity-50 cursor-not-allowed bg-muted" : "cursor-pointer hover:bg-accent"}`}>
                           <Checkbox
                             checked={selectedRooms.has(r.id)}
-                            disabled={full}
-                            onCheckedChange={() => !full && toggleRoom(r.id)}
+                            disabled={disabled}
+                            onCheckedChange={() => !disabled && toggleRoom(r.id)}
                           />
                           <div className="flex-1">
                             <p className="font-medium text-sm">{r.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {full ? "Plus de place pour cette salle" :
-                                r.capacity ? `${r.registered}/${r.capacity} inscrits` : "Inscriptions ouvertes"}
+                            <p className={`text-xs ${disabled ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+                              {statusText}
                             </p>
                           </div>
                         </label>
