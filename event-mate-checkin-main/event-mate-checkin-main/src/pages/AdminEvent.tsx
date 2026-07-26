@@ -38,86 +38,52 @@ const AdminEvent = () => {
   const [saving, setSaving] = useState(false);
   const [newRoomName, setNewRoomName] = useState("");
   const [newRoomCap, setNewRoomCap] = useState("");
-  const [newRoomStart, setNewRoomStart] = useState("");
-  const [newRoomEnd, setNewRoomEnd] = useState("");
+  const [newRoomDate, setNewRoomDate] = useState("");
+  const [newRoomStartTime, setNewRoomStartTime] = useState("");
+  const [newRoomEndTime, setNewRoomEndTime] = useState("");
 
-  const load = useCallback(async () => {
-    if (!id) return;
-    const { data: e } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
-    setEv(e as any);
-    const { data: r } = await supabase.from("rooms").select("*").eq("event_id", id).order("display_order");
-    setRooms((r as any) ?? []);
-    const { data: rg } = await supabase
-      .from("registrations")
-      .select("*, registration_rooms(room_id), room_check_ins(room_id, checked_in_at)")
-      .eq("event_id", id)
-      .order("created_at", { ascending: false });
-    setRegs((rg as any) ?? []);
-  }, [id]);
-
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { navigate("/login"); return; }
-      load();
-    })();
-    const ch = supabase
-      .channel(`ev-${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "registrations" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "room_check_ins" }, load)
-      .on("postgres_changes", { event: "*", schema: "public", table: "registration_rooms" }, load)
-      .subscribe();
-    return () => { supabase.removeChannel(ch); };
-  }, [id, load, navigate]);
-
-  if (!ev) return <div className="min-h-screen flex items-center justify-center">Chargement…</div>;
-
-  const saveEvent = async () => {
-    setSaving(true);
-    const { error } = await supabase.from("events").update({
-      title: ev.title, subtitle: ev.subtitle, description: ev.description,
-      event_date: ev.event_date, time_range: ev.time_range, location: ev.location,
-      is_active: ev.is_active, banner_position: ev.banner_position || 'center',
-      email_template: ev.email_template,
-      client_pin: ev.client_pin || null,
-    }).eq("id", ev.id);
-    setSaving(false);
-    toast({ title: error ? "Erreur" : "Enregistré", description: error?.message, variant: error ? "destructive" : "default" });
+  const splitIsoDateTime = (isoStr?: string | null) => {
+    if (!isoStr) return { date: "", time: "" };
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return { date: "", time: "" };
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    return { date: `${year}-${month}-${day}`, time: `${hours}:${minutes}` };
   };
 
-  const deleteRegistration = async (regId: string, name: string) => {
-    if (!confirm(`Supprimer "${name}" ? Cette action est irréversible.`)) return;
-    await supabase.from("room_check_ins").delete().eq("registration_id", regId);
-    await supabase.from("registration_rooms").delete().eq("registration_id", regId);
-    const { error } = await supabase.from("registrations").delete().eq("id", regId);
-    if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else { toast({ title: "Participant supprimé" }); load(); }
-  };
-
-  const uploadAsset = async (file: File, kind: "banner" | "logo") => {
-    const path = `${ev.id}/${kind}-${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("event-assets").upload(path, file, { upsert: true });
-    if (error) { toast({ title: "Upload erreur", description: error.message, variant: "destructive" }); return; }
-    const { data } = supabase.storage.from("event-assets").getPublicUrl(path);
-    const patch = kind === "banner" ? { banner_url: data.publicUrl } : { logo_url: data.publicUrl };
-    await supabase.from("events").update(patch).eq("id", ev.id);
-    setEv({ ...ev, ...patch });
-    toast({ title: "Image mise à jour" });
+  const combineDateAndTime = (dateStr: string, timeStr: string) => {
+    if (!dateStr) return null;
+    const time = timeStr || "00:00";
+    const d = new Date(`${dateStr}T${time}:00`);
+    return isNaN(d.getTime()) ? null : d.toISOString();
   };
 
   const addRoom = async () => {
     if (!newRoomName.trim()) return;
     const cap = newRoomCap.trim() ? parseInt(newRoomCap) : null;
+    const startIso = combineDateAndTime(newRoomDate || ev?.event_date || "", newRoomStartTime);
+    const endIso = combineDateAndTime(newRoomDate || ev?.event_date || "", newRoomEndTime);
+
     const { error } = await supabase.from("rooms").insert({
-      event_id: ev.id, 
+      event_id: ev!.id, 
       name: newRoomName.trim(), 
       capacity: cap, 
-      start_time: newRoomStart ? new Date(newRoomStart).toISOString() : null,
-      end_time: newRoomEnd ? new Date(newRoomEnd).toISOString() : null,
+      start_time: startIso,
+      end_time: endIso,
       display_order: rooms.length,
     });
     if (error) toast({ title: "Erreur", description: error.message, variant: "destructive" });
-    else { setNewRoomName(""); setNewRoomCap(""); setNewRoomStart(""); setNewRoomEnd(""); load(); }
+    else { 
+      setNewRoomName(""); 
+      setNewRoomCap(""); 
+      setNewRoomDate(""); 
+      setNewRoomStartTime(""); 
+      setNewRoomEndTime(""); 
+      load(); 
+    }
   };
 
   const updateRoom = async (r: RoomRow, patch: Partial<RoomRow>) => {
@@ -396,31 +362,47 @@ const AdminEvent = () => {
                 <div className="space-y-2">
                   {rooms.map((r) => {
                     const s = stats(r.id);
+                    const startObj = splitIsoDateTime(r.start_time);
+                    const endObj = splitIsoDateTime(r.end_time);
+
                     return (
-                      <div key={r.id} className="flex flex-col lg:flex-row flex-wrap items-start lg:items-center gap-2 p-3 border rounded-lg bg-card">
+                      <div key={r.id} className="flex flex-col xl:flex-row flex-wrap items-start xl:items-center gap-2 p-3 border rounded-lg bg-card">
                         <Input className="flex-1 min-w-[160px]" defaultValue={r.name} onBlur={(e) => e.target.value !== r.name && updateRoom(r, { name: e.target.value })} />
-                        <Input type="number" placeholder="Capacité" className="w-24 text-xs"
+                        <Input type="number" placeholder="Capacité" className="w-20 text-xs"
                           defaultValue={r.capacity ?? ""}
                           onBlur={(e) => {
                             const v = e.target.value.trim() ? parseInt(e.target.value) : null;
                             if (v !== r.capacity) updateRoom(r, { capacity: v });
                           }} />
-                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="shrink-0">Début:</span>
-                          <Input type="datetime-local" className="w-40 h-9 text-xs"
-                            defaultValue={r.start_time ? new Date(new Date(r.start_time).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : ""}
+
+                        <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 p-1.5 rounded-md border">
+                          <span className="shrink-0 font-medium">📅 Date:</span>
+                          <Input type="date" className="w-32 h-8 text-xs bg-white"
+                            defaultValue={startObj.date}
                             onBlur={(e) => {
-                              const v = e.target.value ? new Date(e.target.value).toISOString() : null;
-                              if (v !== r.start_time) updateRoom(r, { start_time: v });
+                              const newDate = e.target.value;
+                              const newStartIso = combineDateAndTime(newDate, startObj.time);
+                              const newEndIso = combineDateAndTime(newDate, endObj.time);
+                              updateRoom(r, { start_time: newStartIso, end_time: newEndIso });
                             }} />
-                          <span className="shrink-0">Fin:</span>
-                          <Input type="datetime-local" className="w-40 h-9 text-xs"
-                            defaultValue={r.end_time ? new Date(new Date(r.end_time).getTime() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16) : ""}
+
+                          <span className="shrink-0 font-medium ml-1">⏰ De:</span>
+                          <Input type="time" className="w-24 h-8 text-xs bg-white"
+                            defaultValue={startObj.time}
                             onBlur={(e) => {
-                              const v = e.target.value ? new Date(e.target.value).toISOString() : null;
-                              if (v !== r.end_time) updateRoom(r, { end_time: v });
+                              const newStartIso = combineDateAndTime(startObj.date || ev.event_date || "", e.target.value);
+                              updateRoom(r, { start_time: newStartIso });
+                            }} />
+
+                          <span className="shrink-0 font-medium">à:</span>
+                          <Input type="time" className="w-24 h-8 text-xs bg-white"
+                            defaultValue={endObj.time}
+                            onBlur={(e) => {
+                              const newEndIso = combineDateAndTime(endObj.date || startObj.date || ev.event_date || "", e.target.value);
+                              updateRoom(r, { end_time: newEndIso });
                             }} />
                         </div>
+
                         <div className="flex gap-1 items-center ml-auto">
                           <Badge variant="secondary" className="text-[10px]">Inscrits {s.registered}</Badge>
                           <Badge variant="default" className="text-[10px]">Présents {s.present}</Badge>
@@ -430,11 +412,21 @@ const AdminEvent = () => {
                     );
                   })}
                 </div>
-                <div className="flex flex-col lg:flex-row flex-wrap gap-2 border-t pt-4">
-                  <Input placeholder="Nouvelle salle..." className="flex-1 min-w-[180px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
-                  <Input type="number" placeholder="Capacité" className="w-24 text-xs" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
-                  <Input type="datetime-local" title="Début" className="w-40 h-9 text-xs" value={newRoomStart} onChange={(e) => setNewRoomStart(e.target.value)} />
-                  <Input type="datetime-local" title="Fin" className="w-40 h-9 text-xs" value={newRoomEnd} onChange={(e) => setNewRoomEnd(e.target.value)} />
+                <div className="flex flex-col xl:flex-row flex-wrap items-stretch xl:items-center gap-2 border-t pt-4">
+                  <Input placeholder="Nom de la salle / atelier..." className="flex-1 min-w-[180px]" value={newRoomName} onChange={(e) => setNewRoomName(e.target.value)} />
+                  <Input type="number" placeholder="Capacité" className="w-20 text-xs" value={newRoomCap} onChange={(e) => setNewRoomCap(e.target.value)} />
+                  
+                  <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 p-1.5 rounded-md border">
+                    <span className="shrink-0 font-medium">📅 Date:</span>
+                    <Input type="date" className="w-32 h-8 text-xs bg-white" value={newRoomDate} onChange={(e) => setNewRoomDate(e.target.value)} />
+                    
+                    <span className="shrink-0 font-medium ml-1">⏰ De:</span>
+                    <Input type="time" className="w-24 h-8 text-xs bg-white" value={newRoomStartTime} onChange={(e) => setNewRoomStartTime(e.target.value)} />
+                    
+                    <span className="shrink-0 font-medium">à:</span>
+                    <Input type="time" className="w-24 h-8 text-xs bg-white" value={newRoomEndTime} onChange={(e) => setNewRoomEndTime(e.target.value)} />
+                  </div>
+
                   <Button onClick={addRoom} className="gap-2"><Plus className="h-4 w-4" /> Ajouter</Button>
                 </div>
               </CardContent>
